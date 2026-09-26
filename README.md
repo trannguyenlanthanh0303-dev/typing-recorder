@@ -1,14 +1,20 @@
 # Typing Recorder
 
-A single static `index.html` with no dependencies and no backend. Participants write one short text message (up to 200 characters) for a texting prompt, on an on-screen keyboard that copies their phone's own keyboard. All labels are visible and the text shows as it's typed: the aim is to record natural typing behaviour, not to test memory. Every tap is recorded so the session can be replayed and analyzed.
+A single static `index.html` with no dependencies and no backend. Participants write short text messages (up to 200 characters each) for 3 texting prompts, on an on-screen keyboard that copies their phone's own keyboard. All labels are visible and the text shows as it's typed: the aim is to record natural typing behaviour, not to test memory. Every tap is recorded so the session can be replayed and analyzed.
 
 Sister project of [memory-typing-game](https://github.com/truongkimson/memory-typing-game).
 
-## Flow: two passes (as in the Finger Reach Test)
-1. **Pass 1, most comfortable grip:** one hand or two, any fingers or thumbs.
-2. **Pass 2, non-dominant hand, thumb only:** the keyboard accepts one touch at a time. Extra fingers are ignored and don't type, but they're recorded as `blocked`.
+## Flow: 3 prompts × 2 grips
+Every participant goes through the same 3 prompts, in order (`PROMPTS` in the script):
+1. "Imagine you're texting your friend to tell them about your day."
+2. "Imagine you're texting a friend to wish them a happy birthday."
+3. "Imagine you're texting a friend to ask them for a small favour."
 
-Both passes use the same prompt, e.g. *"Imagine you're texting your friend to tell them about your day. Write a short text of no more than 200 characters."* The participant writes a fresh message each time. A short summary appears after pass 1, and the final results compare the two passes.
+Each prompt is answered twice, back to back (grips as in the Finger Reach Test):
+- **Text 1, most comfortable grip:** one hand or two, any fingers or thumbs.
+- **Text 2, non-dominant hand, thumb only:** the keyboard accepts one touch at a time. Extra fingers are ignored and don't type, but they're recorded as `blocked`. The screen before it says the second text doesn't have to match the first in content or length.
+
+That makes 6 texts, each opened by a short grip instruction. The results show per-grip averages per text, then both texts for each prompt.
 
 ## Keyboard
 Skins: `ios`, `gboard`, `samsung`. Each has three layers: letters, numbers + symbols, and more symbols. It works like a real phone keyboard:
@@ -28,28 +34,31 @@ There's no autocorrect, word suggestions, emoji, cursor movement or text selecti
 ## URL parameters
 | Param | Meaning |
 |---|---|
-| `?p=1` | Fixed prompt (1–7, see `PROMPTS`). Otherwise the prompt is picked from the seed. |
-| `?seed=abc` | Fixed seed, so the same prompt for everyone (unless `p` is set). |
+| `?seed=abc` | Session id used in the file name (random by default). |
 | `?nr=0` | Samsung only: letters page without the number row (for people who turned **Number keys** off). |
 | `?kb=ios\|gboard\|samsung` | Force a keyboard skin. By default it's detected: iOS → `ios`, Samsung (model `SM-…`) → `samsung`, other Android → `gboard`. |
 
 ## Collecting data
 Recordings are only JSON files; there's no replay link, because a whole message's taps are too big for a URL. **Share recording** sends `typing-recorder-<seed>.json` through the phone's share sheet. Chrome on Android can't share `.json`, so there it's sent as `.txt` with the same JSON. If the share sheet can't send files, the file is downloaded. To look at a file again, use **Load a recording** on the intro screen.
 
-## Recording format (v1)
+## Recording format (v2)
 ```json
 {
-  "app": "typing-recorder", "v": 1, "kb": "ios", "seed": "k3j9",
-  "prompt": "Imagine you're texting your friend to tell them about your day.", "limit": 200,
-  "passes": [
-    { "grip": "comfortable", "text": "Hi! Long day…", "send": 41250,
-      "ev": [[1830, 92, "H", 612, 380, "A"], [2010, 85, "i", 776, 90, "a"], [2400, 640, "bksp", 955, 630, "a"], [2900, 0, "rep", 955, 630, "a"]] },
-    { "grip": "nondominant-thumb", "text": "…", "send": 52010, "ev": [], "blocked": [[1210, "n", 702, 640, "a"]] }
+  "app": "typing-recorder", "v": 2, "kb": "ios", "seed": "k3j9", "limit": 200,
+  "rounds": [
+    { "prompt": "Imagine you're texting your friend to tell them about your day.",
+      "passes": [
+        { "grip": "comfortable", "text": "Hi! Long day…", "send": 41250,
+          "ev": [[1830, 92, "H", 612, 380, "A"], [2010, 85, "i", 776, 90, "a"], [2400, 640, "bksp", 955, 630, "a"], [2900, 0, "rep", 955, 630, "a"]] },
+        { "grip": "nondominant-thumb", "text": "…", "send": 52010, "ev": [], "blocked": [[1210, "n", 702, 640, "a"]] }
+      ] },
+    { "prompt": "Imagine you're texting a friend to wish them a happy birthday.", "passes": [] }
   ]
 }
 ```
+- `rounds`: one per prompt, in the order shown; `passes`: that prompt's texts, in the order written (comfortable, then non-dominant thumb).
 - `text`: the message as sent. It can be rebuilt from `ev`; it's included for convenience.
-- `send`: ms after the prompt appeared when Send was tapped.
+- `send`: ms after the prompt appeared when Send was tapped. Every text has its own clock.
 - `ev`: `[t, holdMs, key, x, y, layer]`, in the order the keys took effect.
   - `t` is the touch-down time, in ms after the prompt appeared.
   - `key` is one of:
@@ -62,6 +71,7 @@ Recordings are only JSON files; there's no replay link, because a whole message'
   - `x` is 0–1000 across the keyboard width. `y` is 0 (top of the first key row) to 1000 (bottom of the last row). The iPhone globe/mic strip gives values above 1000.
   - `layer` shows what was on screen when the key took effect: `a` lowercase, `A` shift, `C` caps lock, `1` numbers, `2` more symbols.
 - `blocked`: touches ignored during the one-touch pass, as `[t, key, x, y, layer]`. Only present when there's at least one.
+- Older v1 files (a single `prompt` with top-level `passes`) still load, as one round.
 - No participant or device information is stored, apart from the keyboard skin. The message text is stored, so participants are told not to write anything private.
 
 The metrics in the app are computed from `ev`: characters, WPM (5 chars = 1 word, from the first to the last typed character), time to first key, total time, taps, deletions, and the median gap between taps.
@@ -71,4 +81,4 @@ The metrics in the app are computed from `ev`: characters, WPM (5 chars = 1 word
 python3 -m http.server 8765          # repo root
 cd tests && npm install && npm run e2e   # needs Node 20+ and Google Chrome
 ```
-The test types two messages on each skin through the real keyboard: capitals, symbol layers, double-space period, ⌫, held ⌫, caps lock and a blocked touch. It then checks that the text rebuilds exactly from the events, the file round trip, the replay, and the edit rules (200-character limit, iOS layer return, auto-capitals). Screenshots go to `tests/out/`.
+The test goes through all 3 prompts × 2 grips on each skin through the real keyboard: capitals, symbol layers, double-space period, ⌫, held ⌫, caps lock and a blocked touch. It then checks that the text rebuilds exactly from the events, the file round trip, the replay, and the edit rules (200-character limit, iOS layer return, auto-capitals). Screenshots go to `tests/out/`.

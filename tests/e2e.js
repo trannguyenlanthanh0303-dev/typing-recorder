@@ -10,7 +10,7 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     const ctx = await browser.newContext({ ...devices[dev], colorScheme: scheme });
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', e => errs.push(e.message));
-    await page.goto(`${URL}?seed=test&p=1&kb=${skin}`);
+    await page.goto(`${URL}?seed=test&kb=${skin}`);
     await page.tap('#btn-start');
 
     const center = k => page.evaluate(k => {
@@ -71,14 +71,11 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     await page.screenshot({ path: `${out}${skin}-compose.png` });
     await page.tap('#t-send');
 
-    // ---- Summary, pass 2
-    await page.waitForSelector('#s-pass.on');
-    if (skin === 'ios') await page.screenshot({ path: `${out}pass1-summary.png` });
-    await page.waitForTimeout(450); await page.tap('#btn-pass');
-    await page.waitForFunction(() => $('#p-title').textContent.startsWith('Non-dominant')); await page.waitForTimeout(450);
+    // ---- Prompt 1, text 2
+    await page.waitForFunction(() => $('#s-pass').classList.contains('on') && $('#p-title').textContent.startsWith('Non-dominant')); await page.waitForTimeout(450);
     if (skin === 'ios') await page.screenshot({ path: `${out}pass2-intro.png` });
     await page.tap('#btn-pass');
-    await page.waitForFunction(() => S.kb && S.kb.enabled && S.p === 1);
+    await page.waitForFunction(() => S.kb && S.kb.enabled && S.r === 0 && S.p === 1);
     check(`${skin} pass 2 starts empty`, await live() === '');
     await typeText('Tired but good');
     await twoFingers('a', 'b'); // blocked, types only 'a'
@@ -95,23 +92,40 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     check(`${skin} pass 2 text + held ⌫`, !!m && m[1].length <= 6 && m[1].length >= 2, JSON.stringify(t2));
     await page.tap('#t-send');
 
+    // ---- Prompts 2 and 3, both grips
+    const more = [['Happy birthday!! 🎂', 'Happy bday!!'], ['Can you feed my cat on Sat?', 'Could u feed my cat Sat?']];
+    for (let r = 1; r <= 2; r++) for (let pi = 0; pi < 2; pi++) {
+      await page.waitForFunction(([r, pi]) => $('#s-pass').classList.contains('on') && S.r === r && S.p === pi, [r, pi]); await page.waitForTimeout(450);
+      if (skin === 'ios' && r === 1 && pi === 0) await page.screenshot({ path: `${out}prompt2-intro.png` });
+      await page.tap('#btn-pass');
+      await page.waitForFunction(() => S.kb && S.kb.enabled);
+      check(`${skin} prompt ${r + 1} shown`, await page.evaluate(r => $('#t-prompt').textContent.startsWith(PROMPTS[r]) && $('#t-prog').textContent.startsWith(`Prompt ${r + 1} of 3 · Text`), r));
+      await typeText(more[r - 1][pi].replace(' 🎂', ''));
+      await page.tap('#t-send');
+    }
+
     // ---- Results
     await page.waitForSelector('#s-result.on');
     await page.screenshot({ path: `${out}${skin}-result.png`, fullPage: true });
     const res = await page.evaluate(() => ({
-      app: S.rec.app, v: S.rec.v, kb: S.rec.kb, prompt: S.rec.prompt, grips: S.rec.passes.map(p => p.grip),
-      rebuilt: S.rec.passes.map(p => rebuild(p.ev, S.rec.kb).text === p.text),
-      reps: S.rec.passes[1].ev.filter(e => e[2] === 'rep').length,
-      blocked: S.rec.passes.map(p => (p.blocked || []).length),
-      layers: [...new Set(S.rec.passes.flatMap(p => p.ev.map(e => e[5])))].sort().join(''),
-      upper: S.rec.passes[0].ev.filter(e => e[2] === 'H').map(e => e[5]).join(''),
+      app: S.rec.app, v: S.rec.v, kb: S.rec.kb,
+      prompts: S.rec.rounds.map(r => r.prompt).join('|') === PROMPTS.join('|'),
+      grips: S.rec.rounds.map(r => r.passes.map(p => p.grip).join()),
+      texts: S.rec.rounds.slice(1).map(r => r.passes.map(p => p.text).join(' / ')),
+      rebuilt: S.rec.rounds.flatMap(r => r.passes.map(p => rebuild(p.ev, S.rec.kb).text === p.text)),
+      reps: S.rec.rounds[0].passes[1].ev.filter(e => e[2] === 'rep').length,
+      blocked: S.rec.rounds.flatMap(r => r.passes.map(p => (p.blocked || []).length)).join(''),
+      layers: [...new Set(S.rec.rounds[0].passes.flatMap(p => p.ev.map(e => e[5])))].sort().join(''),
+      cards: document.querySelectorAll('#r-rows .row').length,
       json: JSON.stringify(S.rec).length,
     }));
     console.log(skin, JSON.stringify(res));
-    check(`${skin} recording shape`, res.app === 'typing-recorder' && res.v === 1 && res.kb === skin && res.grips.join() === 'comfortable,nondominant-thumb');
-    check(`${skin} text rebuilt from events`, res.rebuilt.every(Boolean));
+    check(`${skin} recording shape`, res.app === 'typing-recorder' && res.v === 2 && res.kb === skin && res.prompts && res.grips.every(g => g === 'comfortable,nondominant-thumb') && res.grips.length === 3);
+    check(`${skin} prompts 2-3 texts`, res.texts.join(' | ') === 'Happy birthday!! / Happy bday!! | Can you feed my cat on Sat? / Could u feed my cat Sat?', JSON.stringify(res.texts));
+    check(`${skin} text rebuilt from events`, res.rebuilt.length === 6 && res.rebuilt.every(Boolean));
     check(`${skin} ⌫ repeats recorded`, res.reps >= 1);
-    check(`${skin} blocked touch`, res.blocked[0] === 0 && res.blocked[1] === 1);
+    check(`${skin} blocked touch`, res.blocked === '010000', res.blocked);
+    check(`${skin} one result card per prompt`, res.cards === 3);
     check(`${skin} layer codes`, res.layers === '12ACa' || res.layers === '1ACa', res.layers);
 
     // ---- Load the file back and replay
@@ -126,8 +140,8 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     await p2.screenshot({ path: `${out}${skin}-replay.png` });
     const mid = await p2.evaluate(() => ({ text: $('#rp-msg').textContent, dots: document.querySelectorAll('#rp-kb .dot').length, down: document.querySelectorAll('#rp-kb .key.down').length }));
     check(`${skin} replay mid-pass`, exp1.startsWith(mid.text.replace('\n', '\n')) || mid.text.length > 0, JSON.stringify(mid));
-    await p2.evaluate(() => { Replay.select(1); Replay.t = Replay.end(); Replay.render(); });
-    check(`${skin} replay end = sent text`, await p2.evaluate(() => $('#rp-msg').textContent === Replay.pass().text));
+    await p2.evaluate(() => { Replay.select(4); Replay.t = Replay.end(); Replay.render(); });
+    check(`${skin} replay end = sent text`, await p2.evaluate(() => $('#rp-msg').textContent === Replay.pass().text && $('#rp-prompt').textContent === PROMPTS[2] && $('#rp-pos').textContent === '5/6'));
     await p2.evaluate(() => { Replay.select(1); Replay.t = Replay.pass().blocked[0][0] + 10; Replay.render(); });
     check(`${skin} replay blocked dot`, await p2.evaluate(() => document.querySelectorAll('#rp-kb .dot.blocked').length === 1));
     if (skin === 'gboard') await p2.screenshot({ path: `${out}replay-blocked.png` });
@@ -146,7 +160,8 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
       iosBack: run(['123', '1', ' '], 'ios').layer + run(['123', '1', ' '], 'gboard').layer,
       bkspCap: run(['H', 'i', '.', ' ', 'y', 'bksp']).shift,
       bad: (() => { try { validate({ v: 3, passes: [] }); return 'accepted'; } catch (e) { return 'rejected'; } })(),
-      proto: validate({ app: 'typing-recorder', v: 1, kb: 'constructor', passes: [{ ev: [[1, 2, 'a', 3, 4]], send: 9 }] }).kb,
+      v1: (r => r.v + ':' + r.rounds.length + ':' + r.rounds[0].prompt + ':' + r.rounds[0].passes.length)(validate({ app: 'typing-recorder', v: 1, kb: 'ios', prompt: 'Old prompt', passes: [{ grip: 'comfortable', text: 'a', ev: [[1, 2, 'a', 3, 4, 'a']], send: 9 }] })),
+      proto: validate({ app: 'typing-recorder', v: 2, kb: 'constructor', rounds: [{ prompt: 'x', passes: [{ ev: [[1, 2, 'a', 3, 4]], send: 9 }] }] }).kb,
     };
   });
   console.log('units', JSON.stringify(u));
@@ -156,6 +171,7 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
   check('auto-capital after ⌫', u.bkspCap === 1);
   check('rejects other recordings', u.bad === 'rejected');
   check('prototype skin name', u.proto === 'gboard');
+  check('v1 recording upgrades to one round', u.v1 === '2:1:Old prompt:1', u.v1);
   await browser.close();
   console.log(failed ? `${failed} FAILED` : 'all passed');
   process.exit(failed ? 1 : 0);
