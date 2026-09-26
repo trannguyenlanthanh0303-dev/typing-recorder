@@ -646,7 +646,6 @@ function metrics(p, skin) {
     taps: taps.length,
     dels: p.ev.filter(e => e[2] === 'bksp' || e[2] === 'rep').length,
     other: taps.filter(e => !isChar(e[2]) && e[2] !== 'enter' && e[2] !== 'bksp').length,
-    hold: median(typing.map(e => e[1])),
     gap: median(gaps),
     blocked: p.blocked ? p.blocked.length : 0,
   };
@@ -852,7 +851,6 @@ function showResult(rec, live) {
     ['Total time', m => secs(m.total)],
     ['Taps', m => m.taps],
     ['Deletions', m => m.dels],
-    ['Median hold', m => msec(m.hold)],
     ['Median gap', m => msec(m.gap)],
     ...(ms.some(m => m.blocked) ? [['Blocked touches', m => m.blocked]] : []),
   ];

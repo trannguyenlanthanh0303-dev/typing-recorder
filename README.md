@@ -64,7 +64,7 @@ Recordings are only JSON files; there's no replay link, because a whole message'
 - `blocked`: touches ignored during the one-touch pass, as `[t, key, x, y, layer]`. Only present when there's at least one.
 - No participant or device information is stored, apart from the keyboard skin. The message text is stored, so participants are told not to write anything private.
 
-The metrics in the app are computed from `ev`: characters, WPM (5 chars = 1 word, from the first to the last typed character), time to first key, total time, taps, deletions, median hold, and the median gap between taps.
+The metrics in the app are computed from `ev`: characters, WPM (5 chars = 1 word, from the first to the last typed character), time to first key, total time, taps, deletions, and the median gap between taps.
 
 ## Tests
 ```sh
