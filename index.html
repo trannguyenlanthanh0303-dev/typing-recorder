@@ -171,23 +171,15 @@ ol.steps li::before {
 <section id="s-intro" class="screen scroll on">
   <div class="page">
     <h1>Typing Recorder</h1>
-    <p class="lede">How do you type when you text?</p>
+    <p class="lede">A short study of how people type on their phones.</p>
 
-    <h2>Why this test</h2>
-    <p>Everyone has their own way of typing on a phone: how fast they go, where their thumbs land, when they pause, and how they fix mistakes. This test records that, in a situation close to real texting.</p>
-    <p>You'll write a short message on a keyboard that looks like the one you use every day. The app records every tap: which key, when, how long you held it, and exactly where your finger landed. Your typing can then be replayed and studied later.</p>
-
-    <h2>How it works</h2>
     <ol class="steps">
-      <li>The test has <b>2 passes</b>. In each pass you write <b>one short message</b> for the same prompt. In <b>pass 1</b> you hold your phone however is most comfortable. In <b>pass 2</b> you type with only the <b>thumb of your non-dominant hand</b>. Each pass starts with a short instruction.</li>
-      <li>Tap <b>Start</b>. A prompt appears, for example <em>“Imagine you're texting your friend to tell them about your day.”</em></li>
-      <li>Type your message on the keyboard below, as you would to a friend. It can be up to <b>200 characters</b>.</li>
-      <li>The keyboard works like yours: shift, numbers and symbols, <b>⌫</b> (hold it to keep deleting), and a double space to type a period. There's no autocorrect, word suggestions or emoji.</li>
-      <li>When your message is ready, tap <b>Send</b>.</li>
-      <li>In pass 2 you answer the same prompt again. Write it fresh: it doesn't need to match your first message.</li>
-      <li>At the end, see how the two passes compare, then tap <b>Share</b> to send your recording to the researcher.</li>
+      <li>You'll write <b>2 short texts</b> (up to 200 characters) for the same prompt.</li>
+      <li><b>Text 1:</b> hold your phone however is comfortable.<br><b>Text 2:</b> use only the thumb of your non-dominant hand.</li>
+      <li>Type as you normally would, typos and all, then tap <b>Send</b>. There's no autocorrect.</li>
+      <li>At the end, tap <b>Share</b> to send your recording to the researcher.</li>
     </ol>
-    <p class="note">Type as naturally as you would in a real message. Typos and corrections are part of what's being recorded. No personal or device information is collected, only your messages and your taps. Your messages <b>are</b> saved in the recording, so don't write anything private (real names, addresses, numbers).</p>
+    <p class="note">Only your texts and taps are recorded, with no personal or device information. Don't write anything private.</p>
     <p class="note" id="ios-hint" hidden>For a true full-screen view on iPhone, tap <b>Share → Add to Home Screen</b> and open the test from your home screen.</p>
 
     <div style="margin-top:24px">
@@ -273,14 +265,15 @@ const TASK = `Write a short text of no more than ${LIMIT} characters.`;
 const PASSES = [
   {
     grip: 'comfortable', title: 'Your most comfortable grip', short: 'Comfortable grip',
-    how: 'Hold your phone however is most comfortable: one hand or two, any fingers or thumbs.',
-    task: 'Write your message the way you normally would when texting.',
+    how: 'Hold your phone however is most comfortable: one hand or two, any fingers.',
+    task: 'Type the way you normally would when texting.',
     hint: 'Comfortable grip', maxTouches: Infinity,
   },
   {
     grip: 'nondominant-thumb', title: 'Non-dominant hand, thumb only', short: 'Non-dominant thumb',
-    how: 'Now hold your phone in one hand only: your non-dominant one (your left hand if you\'re right-handed).',
-    task: 'Type using only the thumb of that hand. Only one touch counts at a time. You\'ll get the same prompt: write your message fresh, it doesn\'t need to match the first one.',
+    how: 'Hold your phone in your non-dominant hand only (your left if you\'re right-handed) and type with its thumb.',
+    task: 'Only one touch counts at a time.',
+    note: 'Same prompt as before, but your second text doesn\'t have to have the same content or length as the first one.',
     hint: 'Non-dominant thumb only', maxTouches: 1,
   },
 ];
@@ -740,7 +733,7 @@ function showPassIntro() {
   const P = PASSES[S.p];
   $('#p-step').textContent = `Pass ${S.p + 1} of ${PASSES.length}`;
   $('#p-title').textContent = P.title;
-  $('#p-body').innerHTML = `<p class="grip">${esc(P.how)}</p><p>${esc(P.task)}</p>`;
+  $('#p-body').innerHTML = `<p class="grip">${esc(P.how)}</p><p>${esc(P.task)}</p>${P.note ? `<p class="note">${esc(P.note)}</p>` : ''}`;
   $('#btn-pass').textContent = `Begin pass ${S.p + 1}`;
   $('#btn-pass').onclick = beginPass;
   show('s-pass');
@@ -753,7 +746,7 @@ function showPassSummary() {
   $('#p-body').innerHTML = `<div class="tiles">${[
     [m.len, 'characters'], [fmt(m.wpm), 'words / min'], [m.dels, 'deletions'],
   ].map(([b, t]) => `<div class="tile"><b>${esc(b)}</b><span>${t}</span></div>`).join('')}</div>
-    <p style="margin-top:16px">Next: the same prompt, typed with a different grip.</p>`;
+    <p style="margin-top:16px">Next: the same prompt, with a different grip.</p>`;
   $('#btn-pass').textContent = `Continue to pass ${S.p + 2} →`;
   $('#btn-pass').onclick = () => { S.p++; showPassIntro(); };
   show('s-pass');
