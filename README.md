@@ -28,7 +28,7 @@ There's no autocorrect, word suggestions, emoji, cursor movement or text selecti
 ## URL parameters
 | Param | Meaning |
 |---|---|
-| `?p=1` | Fixed prompt (1–5, see `PROMPTS`). Otherwise the prompt is picked from the seed. |
+| `?p=1` | Fixed prompt (1–7, see `PROMPTS`). Otherwise the prompt is picked from the seed. |
 | `?seed=abc` | Fixed seed, so the same prompt for everyone (unless `p` is set). |
 | `?nr=0` | Samsung only: letters page without the number row (for people who turned **Number keys** off). |
 | `?kb=ios\|gboard\|samsung` | Force a keyboard skin. By default it's detected: iOS → `ios`, Samsung (model `SM-…`) → `samsung`, other Android → `gboard`. |
