@@ -1,0 +1,1003 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Typing Recorder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Typing Recorder">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121214" media="(prefers-color-scheme: dark)">
+<style>
+:root {
+  --bg: #f6f6f3; --fg: #1b1b1f; --muted: #6b6b73; --card: #ffffff; --line: #e2e2dd;
+  --accent: #2f5bea; --accent-fg: #fff; --good: #1d8a4a; --bad: #c8372c; --miss: #b0b0b6;
+  --safe-t: env(safe-area-inset-top); --safe-b: env(safe-area-inset-bottom);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121214; --fg: #ececf0; --muted: #9a9aa4; --card: #1c1c20; --line: #2c2c32;
+    --accent: #6b8cff; --accent-fg: #0b0b10; --good: #4cc47d; --bad: #ff6b5e; --miss: #5a5a62;
+  }
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  overscroll-behavior: none; -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
+}
+body { overflow: hidden; }
+button { font: inherit; color: inherit; }
+
+.screen { position: fixed; inset: 0; display: none; flex-direction: column; background: var(--bg); }
+.screen.on { display: flex; }
+.scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.page { width: 100%; max-width: 560px; margin: 0 auto; padding: calc(24px + var(--safe-t)) 20px calc(32px + var(--safe-b)); }
+
+h1 { font-size: 28px; line-height: 1.15; margin: 8px 0 6px; letter-spacing: -0.02em; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 28px 0 8px; }
+.lede { font-size: 18px; color: var(--muted); margin: 0 0 8px; }
+p { margin: 0 0 12px; }
+ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; }
+ol.steps li { counter-increment: s; position: relative; padding: 0 0 12px 38px; }
+ol.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--card); border: 1px solid var(--line); font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+.note { font-size: 14px; color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.btn {
+  display: block; width: 100%; border: 0; border-radius: 14px; padding: 16px; font-size: 17px; font-weight: 600;
+  background: var(--accent); color: var(--accent-fg); cursor: pointer; touch-action: manipulation;
+}
+.btn.ghost { background: var(--card); color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
+.btn:disabled { opacity: .5; }
+.btn:active { filter: brightness(.92); }
+.linkbtn { background: none; border: 0; color: var(--accent); padding: 14px; width: 100%; font-size: 15px; cursor: pointer; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+.actions .wide { grid-column: 1 / -1; }
+
+/* Compose */
+.stage { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 560px; margin: 0 auto; padding: calc(12px + var(--safe-t)) 14px 10px; user-select: none; -webkit-user-select: none; }
+.prog { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: center; }
+.prompt { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: 15px; line-height: 1.4; }
+.prompt small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.msgbox { flex: 1; min-height: 64px; overflow-y: auto; display: flex; flex-direction: column; }
+.msg {
+  align-self: flex-end; margin-top: auto; max-width: 88%; background: var(--accent); color: var(--accent-fg); border-radius: 18px 18px 4px 18px;
+  padding: 8px 12px; font-size: 17px; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.35em;
+}
+.msg::after { content: ""; display: inline-block; width: 2px; height: 1.1em; vertical-align: -0.2em; background: currentColor; margin-left: 1px; animation: blink 1s steps(1) infinite; }
+.msg.empty { background: var(--card); color: var(--muted); border: 1px dashed var(--line); }
+.msg.empty::before { content: "Type your message…"; }
+.msg.still::after { animation: none; }
+@keyframes blink { 50% { opacity: 0; } }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.count.full { color: var(--bad); font-weight: 600; }
+.send { border: 0; border-radius: 99px; padding: 8px 18px; background: var(--accent); color: var(--accent-fg); font-weight: 600; font-size: 16px; cursor: pointer; touch-action: manipulation; }
+.send:disabled { opacity: .35; }
+.send.flash { filter: brightness(.8); }
+
+/* Result */
+.rows { display: flex; flex-direction: column; gap: 8px; }
+.row { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
+.row .target { font-weight: 600; font-size: 14px; }
+.row .text { font-size: 16px; white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0; }
+.row .stats { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0 4px; }
+.tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.tile b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.tile span { font-size: 13px; color: var(--muted); }
+.cmp { display: grid; grid-template-columns: 1.3fr 1fr 1fr; background: var(--card); border: 1px solid var(--line); border-radius: 14px; margin: 16px 0 4px; overflow: hidden; }
+.cmp.one { grid-template-columns: 1.3fr 1fr; }
+.cmp > div { padding: 9px 12px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.cmp > .h { border-top: 0; font-size: 12px; font-weight: 600; color: var(--muted); line-height: 1.3; }
+.cmp > .l { font-size: 14px; color: var(--muted); }
+.cmp > .v { font-size: 18px; font-weight: 700; }
+.quote { font-size: 15px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+
+/* Pass screens */
+.page.center { margin: auto; }
+.step { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+.grip { font-size: 18px; font-weight: 600; }
+#btn-pass { margin-top: 24px; }
+
+/* Replay */
+.rp-top { display: flex; align-items: center; justify-content: space-between; padding: calc(8px + var(--safe-t)) 8px 0; }
+.rp-top button { background: none; border: 0; color: var(--accent); font-size: 16px; padding: 10px 12px; cursor: pointer; }
+#s-replay .stage { padding-top: 4px; }
+.rp-ctrl { display: flex; align-items: center; gap: 8px; width: 100%; }
+.rp-ctrl button { flex: none; min-width: 44px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); cursor: pointer; font-size: 15px; font-variant-numeric: tabular-nums; }
+.rp-ctrl input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.rp-time { font-variant-numeric: tabular-nums; font-size: 14px; color: var(--muted); }
+
+#toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translateX(-50%) translateY(20px); opacity: 0; transition: .2s; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; pointer-events: none; z-index: 20; }
+#toast.on { opacity: 1; transform: translateX(-50%); }
+#rotate { position: fixed; inset: 0; z-index: 30; background: var(--bg); display: none; align-items: center; justify-content: center; text-align: center; padding: 24px; font-size: 18px; }
+@media (orientation: landscape) and (max-height: 520px) { #rotate { display: flex; } }
+
+/* ---------- Keyboard skins ---------- */
+.kb { position: relative; flex: none; width: 100%; background: var(--kb-bg); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; overflow: hidden; }
+.kb .layer { position: absolute; inset: 0; }
+.kb .layer[hidden] { display: none; }
+.kb .key {
+  position: absolute; display: flex; align-items: center; justify-content: center;
+  background: var(--kb-key); color: var(--kb-fg); border-radius: var(--kb-r); box-shadow: var(--kb-shadow);
+  font-family: var(--kb-font); font-size: var(--kb-fs); font-weight: 400; line-height: 1; pointer-events: none;
+}
+.kb .key.sp { background: var(--kb-sp); font-size: 16px; }
+.kb .key.space { font-size: 15px; color: var(--kb-fg2); }
+.kb .key.enter { background: var(--kb-enter); color: var(--kb-enter-fg); }
+.kb .key.bare { background: none; box-shadow: none; color: var(--kb-fg2); }
+.kb .key.down { background: var(--kb-down); }
+.kb .key.sp.down, .kb .key.enter.down { filter: brightness(.85); }
+.kb .key svg { width: 24px; height: 24px; }
+.kb .key.on, .kb .key.lock { background: var(--kb-key); }
+.kb .key.on svg path, .kb .key.lock svg path { fill: currentColor; }
+.kb .key.lock::after { content: ""; position: absolute; bottom: 7px; left: 50%; width: 12px; margin-left: -6px; height: 2px; background: currentColor; }
+.kb .dots { position: absolute; inset: 0; pointer-events: none; }
+.kb .dot { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: #ff3b30; border: 2px solid #fff; }
+.kb .dot.old { width: 8px; height: 8px; margin: -4px 0 0 -4px; border: 0; opacity: .45; }
+.kb .dot.blocked { background: none; border: 2px dashed #8e8e93; }
+
+.kb[data-skin=ios] {
+  --kb-bg: #d1d4da; --kb-key: #fff; --kb-sp: #abb0bb; --kb-fg: #000; --kb-fg2: #000; --kb-down: #d9dbe0;
+  --kb-enter: #007aff; --kb-enter-fg: #fff; --kb-r: 5px; --kb-shadow: 0 1px 0 rgba(0,0,0,.3);
+  --kb-font: -apple-system, "SF Pro Text", system-ui, sans-serif; --kb-fs: 24px;
+}
+.kb[data-skin=gboard] {
+  --kb-bg: #e9ecf1; --kb-key: #fff; --kb-sp: #cdd4df; --kb-fg: #1f1f1f; --kb-fg2: #5f6368; --kb-down: #d3d8e0;
+  --kb-enter: #1a73e8; --kb-enter-fg: #fff; --kb-r: 7px; --kb-shadow: none;
+  --kb-font: Roboto, "Google Sans", system-ui, sans-serif; --kb-fs: 22px;
+}
+.kb[data-skin=samsung] {
+  --kb-bg: #f1f1f1; --kb-key: #fdfdfd; --kb-sp: #e2e2e2; --kb-fg: #111; --kb-fg2: #6b6b6b; --kb-down: #d6d6d6;
+  --kb-enter: #e2e2e2; --kb-enter-fg: #111; --kb-r: 9px; --kb-shadow: none;
+  --kb-font: "SamsungOne", Roboto, system-ui, sans-serif; --kb-fs: 22px;
+}
+@media (prefers-color-scheme: dark) {
+  .kb[data-skin=ios] { --kb-bg: #2b2b2d; --kb-key: #6b6b6d; --kb-sp: #464648; --kb-fg: #fff; --kb-fg2: #fff; --kb-down: #8a8a8c; --kb-enter: #0a84ff; --kb-shadow: 0 1px 0 rgba(0,0,0,.6); }
+  .kb[data-skin=gboard] { --kb-bg: #1f2024; --kb-key: #3b3c40; --kb-sp: #2c2d31; --kb-fg: #e8eaed; --kb-fg2: #9aa0a6; --kb-down: #54565b; --kb-enter: #8ab4f8; --kb-enter-fg: #1f1f1f; }
+  .kb[data-skin=samsung] { --kb-bg: #101010; --kb-key: #2b2b2b; --kb-sp: #1e1e1e; --kb-fg: #f2f2f2; --kb-fg2: #9a9a9a; --kb-down: #444; --kb-enter: #1e1e1e; --kb-enter-fg: #f2f2f2; }
+}
+</style>
+</head>
+<body>
+
+<section id="s-intro" class="screen scroll on">
+  <div class="page">
+    <h1>Typing Recorder</h1>
+    <p class="lede">How do you type when you text?</p>
+
+    <h2>Why this test</h2>
+    <p>Everyone has their own way of typing on a phone: how fast they go, where their thumbs land, when they pause, and how they fix mistakes. This test records that, in a situation close to real texting.</p>
+    <p>You'll write a short message on a keyboard that looks like the one you use every day. The app records every tap: which key, when, how long you held it, and exactly where your finger landed. Your typing can then be replayed and studied later.</p>
+
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li>The test has <b>2 passes</b>. In each pass you write <b>one short message</b> for the same prompt. In <b>pass 1</b> you hold your phone however is most comfortable. In <b>pass 2</b> you type with only the <b>thumb of your non-dominant hand</b>. Each pass starts with a short instruction.</li>
+      <li>Tap <b>Start</b>. A prompt appears, for example <em>“Imagine you're texting your friend to tell them about your day.”</em></li>
+      <li>Type your message on the keyboard below, as you would to a friend. It can be up to <b>200 characters</b>.</li>
+      <li>The keyboard works like yours: shift, numbers and symbols, <b>⌫</b> (hold it to keep deleting), and a double space to type a period. There's no autocorrect, word suggestions or emoji.</li>
+      <li>When your message is ready, tap <b>Send</b>.</li>
+      <li>In pass 2 you answer the same prompt again. Write it fresh: it doesn't need to match your first message.</li>
+      <li>At the end, see how the two passes compare, then tap <b>Share</b> to send your recording to the researcher.</li>
+    </ol>
+    <p class="note">Type as naturally as you would in a real message. Typos and corrections are part of what's being recorded. No personal or device information is collected, only your messages and your taps. Your messages <b>are</b> saved in the recording, so don't write anything private (real names, addresses, numbers).</p>
+    <p class="note" id="ios-hint" hidden>For a true full-screen view on iPhone, tap <b>Share → Add to Home Screen</b> and open the test from your home screen.</p>
+
+    <div style="margin-top:24px">
+      <button class="btn" id="btn-start">Start</button>
+      <button class="linkbtn" id="btn-load">Load a recording (.json)</button>
+      <input type="file" id="file" accept=".json,.txt,application/json,text/plain" hidden>
+    </div>
+  </div>
+</section>
+
+<section id="s-pass" class="screen scroll">
+  <div class="page center">
+    <p class="step" id="p-step"></p>
+    <h1 id="p-title"></h1>
+    <div id="p-body"></div>
+    <button class="btn" id="btn-pass"></button>
+  </div>
+</section>
+
+<section id="s-trial" class="screen">
+  <div class="stage">
+    <div class="prog" id="t-prog"></div>
+    <div class="prompt" id="t-prompt"></div>
+    <div class="msgbox" id="t-box"><div class="msg empty" id="t-msg"></div></div>
+    <div class="bar"><span class="count" id="t-count"></span><button class="send" id="t-send" disabled>Send</button></div>
+  </div>
+  <div class="kbhost" id="t-kb"></div>
+</section>
+
+<section id="s-result" class="screen scroll">
+  <div class="page">
+    <h1 id="r-title">Your results</h1>
+    <p class="quote" id="r-prompt"></p>
+    <div id="r-tiles"></div>
+    <h2>Messages</h2>
+    <div class="rows" id="r-rows"></div>
+    <div class="actions">
+      <button class="btn wide" id="btn-share">Share recording</button>
+      <button class="btn ghost" id="btn-replay">Replay</button>
+      <button class="btn ghost" id="btn-again">Start over</button>
+    </div>
+  </div>
+</section>
+
+<section id="s-replay" class="screen">
+  <div class="rp-top">
+    <button id="rp-back">‹ Results</button>
+    <span class="rp-time" id="rp-pos"></span>
+    <button id="rp-speed">1×</button>
+  </div>
+  <div class="stage">
+    <div class="prog" id="rp-label"></div>
+    <div class="prompt" id="rp-prompt"></div>
+    <div class="msgbox" id="rp-box"><div class="msg still" id="rp-msg"></div></div>
+    <div class="bar"><span class="count" id="rp-time">0.0 s</span><button class="send" id="rp-send" tabindex="-1">Send</button></div>
+    <div class="rp-ctrl">
+      <button id="rp-prev" aria-label="Previous pass">‹</button>
+      <button id="rp-play" aria-label="Play">▶</button>
+      <input type="range" id="rp-scrub" min="0" max="1000" value="0" aria-label="Position">
+      <button id="rp-next" aria-label="Next pass">›</button>
+    </div>
+  </div>
+  <div class="kbhost" id="rp-kb"></div>
+</section>
+
+<div id="rotate">Please turn your phone back to portrait.</div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ---------- Config ----------
+const PROMPTS = [
+  "Imagine you're texting your friend to tell them about your day.",
+  "Imagine you're texting a friend to make plans for this weekend.",
+  "Imagine you're texting someone at home to say you'll be late, and why.",
+  "Imagine you're texting a friend to recommend something you enjoyed recently: a film, a show or a place to eat.",
+  "Imagine you're replying to a friend who asked how your week is going.",
+];
+const LIMIT = 200; // characters per message
+const TASK = `Write a short text of no more than ${LIMIT} characters.`;
+// The two passes, as in the Finger Reach Test. `grip` is saved in the recording.
+const PASSES = [
+  {
+    grip: 'comfortable', title: 'Your most comfortable grip', short: 'Comfortable grip',
+    how: 'Hold your phone however is most comfortable: one hand or two, any fingers or thumbs.',
+    task: 'Write your message the way you normally would when texting.',
+    hint: 'Comfortable grip', maxTouches: Infinity,
+  },
+  {
+    grip: 'nondominant-thumb', title: 'Non-dominant hand, thumb only', short: 'Non-dominant thumb',
+    how: 'Now hold your phone in one hand only: your non-dominant one (your left hand if you\'re right-handed).',
+    task: 'Type using only the thumb of that hand. Only one touch counts at a time. You\'ll get the same prompt: write your message fresh, it doesn\'t need to match the first one.',
+    hint: 'Non-dominant thumb only', maxTouches: 1,
+  },
+];
+const gripName = g => (PASSES.find(P => P.grip === g) || { short: 'Single pass' }).short;
+const params = new URLSearchParams(location.search);
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+
+// ---------- Seeded RNG ----------
+function rng(seed) {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 3432918353), h = h << 13 | h >>> 19;
+  let a = h >>> 0;
+  return () => { // mulberry32
+    a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// ---------- Platform detection ----------
+const UA = navigator.userAgent;
+const IS_IOS = /iPhone|iPad|iPod/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
+const HAS_NOTCH = IS_IOS && Math.max(screen.width, screen.height) / Math.min(screen.width, screen.height) > 2;
+
+function detectSkin() {
+  const forced = params.get('kb');
+  if (isSkin(forced)) return Promise.resolve(forced);
+  if (IS_IOS) return Promise.resolve('ios');
+  if (!/Android/.test(UA)) return Promise.resolve('gboard');
+  if (/SM-|Samsung/i.test(UA)) return Promise.resolve('samsung');
+  // Chrome's reduced UA hides the model; ask for it (Samsung models start with SM-).
+  const uad = navigator.userAgentData;
+  if (!uad || !uad.getHighEntropyValues) return Promise.resolve('gboard');
+  return uad.getHighEntropyValues(['model'])
+    .then(v => /^SM-/i.test(v.model || '') ? 'samsung' : 'gboard')
+    .catch(() => 'gboard');
+}
+
+// ---------- Keyboard skins ----------
+// Each skin has three layers: 'a' letters, '1' numbers + symbols, '2' more symbols.
+// Key ids: a single character types that character (letters are lowercase and follow shift);
+// longer ids are special keys: shift, bksp, enter (new line), 123 / sym / abc (switch layer),
+// and keys that do nothing here (emoji, globe, mic).
+// x/w are fractions of keyboard width; y/h are px from the top of the key area.
+// Heights stay fixed in px across screen widths, as native keyboards do.
+function unitRow(keys, y, h, gap, spec) {
+  let x = 0;
+  for (const [k, w, label] of spec) {
+    if (k !== null) keys.push({ k, label, x: x / 10 + gap / 2, w: w / 10 - gap, y, h });
+    x += w;
+  }
+}
+const chars = s => [...s].map(c => [c, 1]);
+
+const SKINS = {
+  // iPhone portrait, measured in pt on a 390pt-wide screen.
+  ios(notch) {
+    const P = v => v / 390;
+    const layer = (rows, row3) => {
+      const keys = [], row = (str, x0, y, step = 39, w = 33) => [...str].forEach((c, i) => keys.push({ k: c, x: P(x0 + step * i), w: P(w), y, h: 42 }));
+      row(rows[0], 3, 8);
+      row(rows[1], rows[1].length === 10 ? 3 : 22.5, 62);
+      if (row3.punct) row(row3.punct, 56, 116, 56.8, 50.8);
+      else row(rows[2], 61.5, 116);
+      keys.push(
+        { ...row3.left, x: P(3), w: P(42), y: 116, h: 42 },
+        { k: 'bksp', x: P(345), w: P(42), y: 116, h: 42 },
+        { ...row3.mode, x: P(3), w: P(43), y: 170, h: 42 },
+        { k: 'emoji', x: P(52), w: P(43), y: 170, h: 42 },
+        { k: ' ', label: 'space', x: P(101), w: P(190), y: 170, h: 42 },
+        { k: 'enter', label: 'return', cls: 'sp', x: P(297), w: P(90), y: 170, h: 42 },
+      );
+      if (notch) keys.push({ k: 'globe', x: P(10), w: P(52), y: 220, h: 40 }, { k: 'mic', x: P(328), w: P(52), y: 220, h: 40 });
+      return keys;
+    };
+    return {
+      toolbar: 44, areaH: 216, strip: notch ? 48 : 0,
+      layers: {
+        a: layer(['qwertyuiop', 'asdfghjkl', 'zxcvbnm'], { left: { k: 'shift' }, mode: { k: '123', label: '123' } }),
+        1: layer(['1234567890', '-/:;()$&@"'], { punct: '.,?!\'', left: { k: 'sym', label: '#+=' }, mode: { k: 'abc', label: 'ABC' } }),
+        2: layer(['[]{}#%^*+=', '_\\|~<>€£¥•'], { punct: '.,?!\'', left: { k: '123', label: '123' }, mode: { k: 'abc', label: 'ABC' } }),
+      },
+    };
+  },
+  // Gboard, 10-unit grid on a ~411dp-wide screen.
+  gboard() {
+    const layer = (r1, r2, r3, mode) => {
+      const keys = [], g = 6 / 411, r = (y, spec) => unitRow(keys, y, 46, g, spec);
+      r(6, chars(r1));
+      r(62, r2.length === 9 ? [[null, .5], ...chars(r2)] : chars(r2));
+      r(118, [r3[0], ...chars(r3[1]), ['bksp', 1.5]]);
+      r(174, [mode, [',', 1], ['emoji', 1], [' ', 4, ''], ['.', 1], ['enter', 1.5]]);
+      return keys;
+    };
+    return {
+      toolbar: 48, areaH: 228, strip: 0,
+      layers: {
+        a: layer('qwertyuiop', 'asdfghjkl', [['shift', 1.5], 'zxcvbnm'], ['123', 1.5, '?123']),
+        1: layer('1234567890', '@#$_&-+()/', [['sym', 1.5, '=\\<'], '*"\':;!?'], ['abc', 1.5, 'ABC']),
+        2: layer('~`|•√π÷×¶∆', '£¢€¥^°={}\\', [['123', 1.5, '?123'], '%©®™✓[]'], ['abc', 1.5, 'ABC']),
+      },
+    };
+  },
+  // Samsung Keyboard (One UI), ~360dp-wide screen.
+  samsung() {
+    const layer = (r1, r2, r3, mode) => {
+      const keys = [], g = 5 / 360, r = (y, spec) => unitRow(keys, y, 44, g, spec);
+      r(6, chars(r1));
+      r(58, r2.length === 9 ? [[null, .5], ...chars(r2)] : chars(r2));
+      r(110, [r3[0], ...chars(r3[1]), ['bksp', 1.5]]);
+      r(162, [mode, [',', 1], [' ', 5, 'English (US)'], ['.', 1], ['enter', 1.5]]);
+      return keys;
+    };
+    return {
+      toolbar: 44, areaH: 214, strip: 0,
+      layers: {
+        a: layer('qwertyuiop', 'asdfghjkl', [['shift', 1.5], 'zxcvbnm'], ['123', 1.5, '!#1']),
+        1: layer('1234567890', '!@#$%&*()-', [['sym', 1.5, '1/2'], '\'":;/?+'], ['abc', 1.5, 'ABC']),
+        2: layer('+×÷=/_<>[]', '€£¥₩^°{}\\|', [['123', 1.5, '2/2'], '~`•©®™✓'], ['abc', 1.5, 'ABC']),
+      },
+    };
+  },
+};
+// Own keys only, so untrusted names like "constructor" aren't treated as skins.
+function isSkin(name) { return typeof name === 'string' && Object.prototype.hasOwnProperty.call(SKINS, name); }
+
+const ICONS = {
+  shift: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 4l8 8.5h-4.5V19h-7v-6.5H4z"/></svg>',
+  bksp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M9 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-6.5-7z"/><path d="M11.5 9.5l5 5m0-5l-5 5"/></svg>',
+  enter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M19 5v7a2 2 0 0 1-2 2H5"/><path d="M9 10l-4 4 4 4"/></svg>',
+  emoji: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M8.5 14.2c1.9 2.2 5.1 2.2 7 0"/><circle cx="9.2" cy="10" r=".6" fill="currentColor"/><circle cx="14.8" cy="10" r=".6" fill="currentColor"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8.5"/><ellipse cx="12" cy="12" rx="3.8" ry="8.5"/><path d="M3.5 12h17M5 7.5h14M5 16.5h14"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3"/></svg>',
+};
+const isLetter = k => k.length === 1 && k.toLowerCase() !== k.toUpperCase();
+const isChar = k => k.length === 1; // a key that types something (plus 'enter')
+
+class Keyboard {
+  constructor(host, skin, opts = {}) {
+    this.skin = skin;
+    this.opts = opts;
+    this.enabled = false;
+    this.maxTouches = Infinity; // 1 = single finger: extra touches are reported to onBlocked, not typed
+    this.active = new Map();
+    const s = this.s = SKINS[skin](skin === 'ios' && HAS_NOTCH);
+    const el = this.el = document.createElement('div');
+    el.className = 'kb';
+    el.dataset.skin = skin;
+    el.style.height = `calc(${s.toolbar + s.areaH + s.strip}px + env(safe-area-inset-bottom))`;
+    this.layers = {};
+    for (const [name, keys] of Object.entries(s.layers)) {
+      const box = document.createElement('div');
+      box.className = 'layer';
+      for (const key of keys) {
+        const d = key.el = document.createElement('div');
+        d.className = 'key ' + (key.cls || (key.k === ' ' ? 'space' : isChar(key.k) ? 'L' : key.k === 'enter' ? 'enter'
+          : key.k === 'globe' || key.k === 'mic' ? 'bare' : 'sp'));
+        if (key.label != null) d.textContent = key.label;
+        else if (ICONS[key.k]) d.innerHTML = ICONS[key.k];
+        else d.textContent = key.k;
+        box.appendChild(d);
+      }
+      // Rows for hit-testing: main rows split at the midpoints between them; strip row is separate.
+      const ys = [...new Set(keys.filter(k => k.y < s.areaH).map(k => k.y))].sort((a, b) => a - b);
+      const rows = ys.map(y => keys.filter(k => k.y === y));
+      this.layers[name] = {
+        keys, box, rows,
+        bounds: ys.slice(1).map((y, i) => (ys[i] + rows[i][0].h + y) / 2),
+        strip: keys.filter(k => k.y >= s.areaH),
+      };
+      el.appendChild(box);
+    }
+    this.dotLayer = document.createElement('div');
+    this.dotLayer.className = 'dots';
+    el.appendChild(this.dotLayer);
+    this.layer = null;
+    this.setLayer('a', 0);
+
+    host.replaceChildren(el);
+    this.layout();
+    this.onResize = () => this.layout();
+    if (window.ResizeObserver) (this.ro = new ResizeObserver(this.onResize)).observe(el);
+    else addEventListener('resize', this.onResize);
+    if (opts.onUp) this.bind();
+  }
+
+  layout() {
+    const W = this.W = this.el.clientWidth || innerWidth;
+    for (const L of Object.values(this.layers)) for (const k of L.keys) {
+      Object.assign(k.el.style, {
+        left: k.x * W + 'px', width: k.w * W + 'px', top: this.s.toolbar + k.y + 'px', height: k.h + 'px',
+      });
+    }
+  }
+
+  get keys() { return this.layers[this.layer].keys; }
+
+  // Show a layer. shift: 0 off, 1 next letter only, 2 caps lock. Letter labels follow shift, as on phones.
+  setLayer(layer, shift) {
+    if (layer !== this.layer) {
+      for (const [name, L] of Object.entries(this.layers)) L.box.hidden = name !== layer;
+      this.layer = layer;
+    }
+    if (layer !== 'a' || this.shift === shift) return;
+    this.shift = shift;
+    for (const k of this.keys) {
+      if (isLetter(k.k)) k.el.textContent = shift ? k.k.toUpperCase() : k.k;
+      else if (k.k === 'shift') { k.el.classList.toggle('on', shift === 1); k.el.classList.toggle('lock', shift === 2); }
+    }
+  }
+
+  hit(px, py) {
+    const y = py - this.s.toolbar, W = this.W, L = this.layers[this.layer];
+    if (y < -6) return null; // taps on the (empty) suggestion strip do nothing
+    const dx = k => Math.max(k.x * W - px, 0, px - (k.x + k.w) * W);
+    let row;
+    if (y >= this.s.areaH) {
+      row = L.strip.filter(k => dx(k) < 16 && y >= k.y - 12 && y <= k.y + k.h + 12);
+    } else {
+      let r = 0;
+      while (r < L.bounds.length && y >= L.bounds[r]) r++;
+      row = L.rows[r];
+    }
+    let best = null, bd = Infinity;
+    for (const k of row) { const d = dx(k); if (d < bd) bd = d, best = k; }
+    return best;
+  }
+
+  norm(px, py) { return [Math.round(px / this.W * 1000), Math.round((py - this.s.toolbar) / this.s.areaH * 1000)]; }
+  denorm(nx, ny) { return [nx / 1000 * this.W, this.s.toolbar + ny / 1000 * this.s.areaH]; }
+
+  bind() {
+    const el = this.el;
+    const now = e => {
+      const p = performance.now();
+      return e.timeStamp > 0 && Math.abs(p - e.timeStamp) < 1000 ? e.timeStamp : p;
+    };
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (!this.enabled) return;
+      const r = el.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+      const key = this.hit(px, py);
+      if (!key) return;
+      const [nx, ny] = this.norm(px, py);
+      if (this.active.size >= this.maxTouches) {
+        if (this.opts.onBlocked) this.opts.onBlocked({ k: key.k, t: now(e), x: nx, y: ny });
+        return;
+      }
+      try { el.setPointerCapture(e.pointerId); } catch (_) {}
+      const a = { key, t: now(e), x: nx, y: ny };
+      this.active.set(e.pointerId, a);
+      key.el.classList.add('down');
+      if (this.opts.onDown) this.opts.onDown(a);
+    });
+    const end = (e, commit) => {
+      const a = this.active.get(e.pointerId);
+      if (!a) return;
+      this.active.delete(e.pointerId);
+      clearTimeout(a.timer);
+      if (![...this.active.values()].some(o => o.key === a.key)) a.key.el.classList.remove('down');
+      if (this.enabled) this.opts.onUp(a, now(e), commit);
+    };
+    el.addEventListener('pointerup', e => end(e, true));
+    el.addEventListener('pointercancel', e => end(e, false));
+    el.addEventListener('contextmenu', e => e.preventDefault());
+    // Stop the follow-up "click" from landing on whatever replaces the keyboard (e.g. result buttons).
+    for (const t of ['touchstart', 'touchend']) el.addEventListener(t, e => e.preventDefault(), { passive: false });
+  }
+
+  mount(host) { // show this keyboard in host (a host holds one keyboard at a time)
+    if (this.el.parentNode !== host) host.replaceChildren(this.el);
+    this.layout();
+  }
+
+  destroy() {
+    this.cancelAll();
+    if (this.ro) this.ro.disconnect();
+    else removeEventListener('resize', this.onResize);
+    this.el.remove();
+  }
+
+  cancelAll() {
+    for (const a of this.active.values()) { clearTimeout(a.timer); a.key.el.classList.remove('down'); }
+    this.active.clear();
+  }
+
+  // Replay rendering
+  showDown(ids) { for (const k of this.keys) k.el.classList.toggle('down', ids.has(k.k)); }
+  showDots(dots) { // [{x, y, old, blocked}]
+    this.dotLayer.innerHTML = dots.map(d => {
+      const [px, py] = this.denorm(d.x, d.y);
+      return `<div class="dot${d.blocked ? ' blocked' : d.old ? ' old' : ''}" style="left:${px}px;top:${py}px"></div>`;
+    }).join('');
+  }
+}
+
+// ---------- Text editing ----------
+// A pure state machine, so the live test, the replay and the metrics all rebuild the same text from `ev`.
+// Recorded keys: the character typed (already upper-cased by shift), 'enter' (new line),
+// 'bksp' (first delete of a ⌫ press), 'rep' (each extra delete while ⌫ is held), or any other special key.
+const newState = () => ({ text: '', layer: 'a', shift: 1, lastShift: -1e9, prev: '' });
+const autoCap = text => text === '' || /(^|[.!?])\s+$/.test(text) || /\n$/.test(text);
+function step(st, key, t, skin) {
+  const s = { ...st };
+  const recap = () => { if (s.shift !== 2) s.shift = autoCap(s.text) ? 1 : 0; };
+  if (isChar(key) || key === 'enter') {
+    const ch = key === 'enter' ? '\n' : key;
+    // Double space after a word types ". " (on by default on iPhone, Gboard and Samsung).
+    if (ch === ' ' && s.prev === ' ' && /[\p{L}\p{N}] $/u.test(s.text)) {
+      if (s.text.length < LIMIT) s.text = s.text.slice(0, -1) + '. ';
+    } else if (s.text.length < LIMIT) s.text += ch;
+    // iPhone goes back to letters after a space or apostrophe typed on the number layers.
+    if (skin === 'ios' && s.layer !== 'a' && (ch === ' ' || ch === '\'')) s.layer = 'a';
+    recap();
+  } else if (key === 'bksp' || key === 'rep') {
+    s.text = s.text.slice(0, -1);
+    recap();
+  } else if (key === 'shift') {
+    s.shift = s.shift === 2 ? 0 : s.shift === 1 ? (t - s.lastShift < 350 ? 2 : 0) : 1; // double tap = caps lock
+    s.lastShift = t;
+  } else if (key === '123') s.layer = '1';
+  else if (key === 'sym') s.layer = '2';
+  else if (key === 'abc') s.layer = 'a';
+  s.prev = key;
+  return s;
+}
+// When a recorded key took effect: ⌫ deletes on touch-down, every other key on release.
+const effT = e => e[2] === 'bksp' || e[2] === 'rep' ? e[0] : e[0] + e[1];
+function rebuild(ev, skin, upTo = Infinity) {
+  let st = newState();
+  for (const e of ev) if (effT(e) <= upTo) st = step(st, e[2], effT(e), skin);
+  return st;
+}
+// Layer shown when a key took effect: a lowercase, A shift, C caps lock, 1 numbers, 2 more symbols.
+const layerCode = st => st.layer !== 'a' ? st.layer : st.shift === 2 ? 'C' : st.shift === 1 ? 'A' : 'a';
+const keyId = k => isLetter(k) ? k.toLowerCase() : k; // recorded key -> keyboard key id
+
+// ---------- Metrics ----------
+const mean = a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : null;
+const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), h = s.length >> 1; return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2; };
+function metrics(p, skin) {
+  const text = rebuild(p.ev, skin).text;
+  const taps = p.ev.filter(e => e[2] !== 'rep');
+  const typing = p.ev.filter(e => isChar(e[2]) || e[2] === 'enter');
+  const first = taps.length ? taps[0][0] : null;
+  const lastChar = typing.length ? effT(typing[typing.length - 1]) : null;
+  const span = typing.length > 1 ? lastChar - typing[0][0] : 0;
+  const gaps = taps.slice(1).map((e, i) => e[0] - taps[i][0]);
+  return {
+    text,
+    len: text.length,
+    rt: first,
+    total: p.send,
+    // Standard WPM: 5 characters = 1 word, measured from the first to the last typed character.
+    wpm: text.length > 1 && span > 0 ? text.length / 5 / (span / 60000) : null,
+    taps: taps.length,
+    dels: p.ev.filter(e => e[2] === 'bksp' || e[2] === 'rep').length,
+    other: taps.filter(e => !isChar(e[2]) && e[2] !== 'enter' && e[2] !== 'bksp').length,
+    hold: median(typing.map(e => e[1])),
+    gap: median(gaps),
+    blocked: p.blocked ? p.blocked.length : 0,
+  };
+}
+
+// ---------- Recording ----------
+// Recordings from files are untrusted: rebuild them strictly.
+function validate(o) {
+  if (!o || typeof o !== 'object' || o.app !== 'typing-recorder' || o.v !== 1) throw new Error('Not a recording');
+  const num = v => Number.isFinite(+v) ? Math.round(+v) : 0;
+  const list = a => Array.isArray(a) ? a : [];
+  const passes = list(o.passes).filter(p => p && typeof p === 'object').slice(0, 4).map(p => {
+    const pass = {
+      grip: PASSES.some(P => P.grip === p.grip) ? p.grip : null,
+      text: String(p.text == null ? '' : p.text).slice(0, LIMIT),
+      // Kept in recorded order: that is the order the keys took effect.
+      ev: list(p.ev).filter(Array.isArray).slice(0, 5000)
+        .map(e => [num(e[0]), num(e[1]), String(e[2]).slice(0, 8), num(e[3]), num(e[4]), String(e[5] == null ? 'a' : e[5]).slice(0, 1)]),
+      send: num(p.send),
+    };
+    const blocked = list(p.blocked).filter(Array.isArray).slice(0, 5000).map(b => [num(b[0]), String(b[1]).slice(0, 8), num(b[2]), num(b[3]), String(b[4] == null ? 'a' : b[4]).slice(0, 1)]);
+    if (blocked.length) pass.blocked = blocked;
+    return pass;
+  }).filter(p => p.ev.length || p.text);
+  if (!passes.length) throw new Error('Recording has no messages');
+  return {
+    app: 'typing-recorder', v: 1, kb: isSkin(o.kb) ? o.kb : 'gboard', seed: String(o.seed || '').slice(0, 32),
+    prompt: String(o.prompt || '').slice(0, 300), limit: LIMIT, passes,
+  };
+}
+const baseUrl = () => location.href.split('#')[0];
+
+// ---------- UI helpers ----------
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
+  shownAt = performance.now();
+}
+// Ignore taps right after a screen change so a stray tap can't hit the new screen's buttons.
+let shownAt = -Infinity;
+document.addEventListener('click', e => {
+  if (performance.now() - shownAt < 400) { e.stopPropagation(); e.preventDefault(); }
+}, true);
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 1800);
+}
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+function renderMsg(box, msg, text) {
+  msg.textContent = text;
+  msg.classList.toggle('empty', !text);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ---------- Session ----------
+let SKIN = isSkin(params.get('kb')) ? params.get('kb') : IS_IOS ? 'ios' : 'gboard';
+const skinReady = detectSkin().then(s => { SKIN = s; });
+const S = { rec: null, p: 0, t0: 0, ev: [], blocked: [], st: null, kb: null, live: false };
+
+function goFullscreen() {
+  const d = document.documentElement, req = d.requestFullscreen || d.webkitRequestFullscreen;
+  if (!req || document.fullscreenElement || document.webkitFullscreenElement) return;
+  try {
+    const p = req.call(d, { navigationUI: 'hide' });
+    if (p && p.then) p.then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('portrait').catch(() => {}), () => {});
+  } catch (_) {}
+}
+
+async function startSession() {
+  goFullscreen();
+  await skinReady;
+  const seed = params.get('seed') || Math.random().toString(36).slice(2, 8);
+  const fixed = parseInt(params.get('p'), 10); // ?p=1..n picks a prompt
+  const prompt = fixed >= 1 && fixed <= PROMPTS.length ? PROMPTS[fixed - 1] : PROMPTS[Math.floor(rng(seed)() * PROMPTS.length)];
+  S.rec = { app: 'typing-recorder', v: 1, kb: SKIN, seed, prompt, limit: LIMIT, passes: [] };
+  S.p = 0;
+  S.live = true;
+  showPassIntro();
+}
+
+function showPassIntro() {
+  const P = PASSES[S.p];
+  $('#p-step').textContent = `Pass ${S.p + 1} of ${PASSES.length}`;
+  $('#p-title').textContent = P.title;
+  $('#p-body').innerHTML = `<p class="grip">${esc(P.how)}</p><p>${esc(P.task)}</p>`;
+  $('#btn-pass').textContent = `Begin pass ${S.p + 1}`;
+  $('#btn-pass').onclick = beginPass;
+  show('s-pass');
+}
+
+function showPassSummary() {
+  const m = metrics(S.rec.passes[S.p], S.rec.kb);
+  $('#p-step').textContent = `Pass ${S.p + 1} of ${PASSES.length} · done`;
+  $('#p-title').textContent = `Pass ${S.p + 1} complete`;
+  $('#p-body').innerHTML = `<div class="tiles">${[
+    [m.len, 'characters'], [fmt(m.wpm), 'words / min'], [m.dels, 'deletions'],
+  ].map(([b, t]) => `<div class="tile"><b>${esc(b)}</b><span>${t}</span></div>`).join('')}</div>
+    <p style="margin-top:16px">Next: the same prompt, typed with a different grip.</p>`;
+  $('#btn-pass').textContent = `Continue to pass ${S.p + 2} →`;
+  $('#btn-pass').onclick = () => { S.p++; showPassIntro(); };
+  show('s-pass');
+}
+
+function beginPass() {
+  show('s-trial');
+  if (!S.kb || S.kb.skin !== SKIN) {
+    if (S.kb) S.kb.destroy();
+    S.kb = new Keyboard($('#t-kb'), SKIN, { onDown, onUp, onBlocked });
+  }
+  const kb = S.kb;
+  kb.mount($('#t-kb'));
+  kb.enabled = false;
+  kb.cancelAll();
+  kb.maxTouches = PASSES[S.p].maxTouches;
+  S.st = newState();
+  S.ev = [];
+  S.blocked = [];
+  kb.setLayer('a', S.st.shift);
+  $('#t-prog').textContent = `Pass ${S.p + 1} of ${PASSES.length} · ${PASSES[S.p].hint}`;
+  $('#t-prompt').innerHTML = `${esc(S.rec.prompt)}<small>${esc(TASK)}</small>`;
+  renderCompose();
+  // Start the clock once the prompt has actually been painted.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    S.t0 = performance.now();
+    kb.enabled = true;
+  }));
+}
+
+function renderCompose() {
+  const text = S.st.text;
+  renderMsg($('#t-box'), $('#t-msg'), text);
+  $('#t-count').textContent = `${text.length}/${LIMIT}`;
+  $('#t-count').classList.toggle('full', text.length >= LIMIT);
+  $('#t-send').disabled = !text.trim();
+  S.kb.setLayer(S.st.layer, S.st.shift);
+}
+
+const rel = t => Math.round(t - S.t0);
+function apply(e) { // record a key and apply it
+  S.ev.push(e);
+  S.st = step(S.st, e[2], effT(e), SKIN);
+  renderCompose();
+}
+
+// ⌫ deletes on touch-down and repeats while held (after 500 ms, every 100 ms).
+function onDown(a) {
+  if (a.key.k !== 'bksp') return;
+  a.rec = [rel(a.t), 0, 'bksp', a.x, a.y, layerCode(S.st)];
+  apply(a.rec);
+  const repeat = () => {
+    if (!S.st.text) return;
+    apply([rel(performance.now()), 0, 'rep', a.x, a.y, layerCode(S.st)]);
+    a.timer = setTimeout(repeat, 100);
+  };
+  a.timer = setTimeout(repeat, 500);
+}
+
+function onUp(a, tUp, commit) {
+  const hold = Math.round(tUp - a.t);
+  if (a.rec) { a.rec[1] = hold; return; } // ⌫ already applied on touch-down
+  if (!commit) return;
+  let k = a.key.k;
+  if (isLetter(k) && S.st.layer === 'a' && S.st.shift) k = k.toUpperCase();
+  apply([rel(a.t), hold, k, a.x, a.y, layerCode(S.st)]);
+}
+
+// Extra fingers during a one-touch pass: not typed, but kept as evidence.
+function onBlocked(b) {
+  if (S.kb.enabled) S.blocked.push([rel(b.t), b.k, b.x, b.y, layerCode(S.st)]);
+}
+
+$('#t-send').onclick = () => {
+  if (!S.kb.enabled || !S.st.text.trim()) return;
+  const t = rel(performance.now());
+  S.kb.enabled = false;
+  S.kb.cancelAll();
+  const pass = { grip: PASSES[S.p].grip, text: S.st.text, ev: S.ev, send: t };
+  if (S.blocked.length) pass.blocked = S.blocked;
+  S.rec.passes.push(pass);
+  if (S.p < PASSES.length - 1) showPassSummary();
+  else showResult(S.rec, true);
+};
+
+// ---------- Result ----------
+const fmt = (v, d = 0) => v == null ? '–' : v.toFixed(d);
+const secs = ms => ms == null ? '–' : (ms / 1000).toFixed(1) + ' s';
+const msec = ms => ms == null ? '–' : Math.round(ms) + ' ms';
+
+function showResult(rec, live) {
+  S.rec = rec;
+  S.live = live;
+  const passes = rec.passes, ms = passes.map(p => metrics(p, rec.kb));
+  $('#r-title').textContent = live ? 'Your results' : 'Recording';
+  $('#r-prompt').textContent = rec.prompt || '(no prompt)';
+  const rows = [
+    ['Characters', m => m.len],
+    ['Words / min', m => fmt(m.wpm)],
+    ['First key', m => secs(m.rt)],
+    ['Total time', m => secs(m.total)],
+    ['Taps', m => m.taps],
+    ['Deletions', m => m.dels],
+    ['Median hold', m => msec(m.hold)],
+    ['Median gap', m => msec(m.gap)],
+    ...(ms.some(m => m.blocked) ? [['Blocked touches', m => m.blocked]] : []),
+  ];
+  $('#r-tiles').innerHTML = `<div class="cmp${passes.length === 1 ? ' one' : ''}"><div class="h"></div>${passes.map((p, i) => `<div class="h">Pass ${i + 1}<br>${esc(gripName(p.grip))}</div>`).join('')}
+    ${rows.map(([l, f]) => `<div class="l">${l}</div>${ms.map(m => `<div class="v">${esc(f(m))}</div>`).join('')}`).join('')}</div>`;
+  $('#r-rows').innerHTML = passes.map((p, i) => {
+    const m = ms[i];
+    return `<div class="row"><div class="target">Pass ${i + 1} · ${esc(gripName(p.grip))}</div>
+      <div class="text">${esc(m.text) || '<span class="stats">(nothing)</span>'}</div>
+      <div class="stats">${m.len} characters · ${m.taps} taps${m.dels ? ` · ${m.dels} deleted` : ''}${m.other ? ` · ${m.other} other keys` : ''}</div></div>`;
+  }).join('');
+  $('#btn-again').textContent = live ? 'Start over' : 'Take the test';
+  show('s-result');
+  $('#s-result').scrollTop = 0;
+}
+
+function fileFor(rec) {
+  const json = JSON.stringify(rec);
+  const name = `typing-recorder-${rec.seed || 'rec'}`;
+  return {
+    json, name,
+    // Chrome's Web Share only allows certain extensions (.json isn't one), so fall back to .txt.
+    candidates: [new File([json], name + '.json', { type: 'application/json' }), new File([json], name + '.txt', { type: 'text/plain' })],
+  };
+}
+function download(json, name) {
+  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: name + '.json' });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+$('#btn-share').onclick = async () => {
+  const { json, name, candidates } = fileFor(S.rec);
+  const file = navigator.canShare && candidates.find(f => navigator.canShare({ files: [f] }));
+  if (file) {
+    try { await navigator.share({ files: [file], title: 'Typing recording' }); }
+    catch (e) { if (e.name !== 'AbortError') { download(json, name); toast('Saved as file'); } }
+    return;
+  }
+  download(json, name);
+  toast('Saved as file');
+};
+$('#btn-again').onclick = () => {
+  if (S.live) startSession();
+  else show('s-intro');
+};
+$('#btn-replay').onclick = () => Replay.open(S.rec);
+
+// ---------- Replay ----------
+const Replay = {
+  rec: null, kb: null, i: 0, t: 0, playing: false, speed: 1, last: 0, raf: 0,
+  open(rec) {
+    this.rec = rec;
+    show('s-replay');
+    if (!this.kb || this.kb.skin !== rec.kb) {
+      if (this.kb) this.kb.destroy();
+      this.kb = new Keyboard($('#rp-kb'), rec.kb);
+    }
+    this.kb.mount($('#rp-kb'));
+    $('#rp-prompt').textContent = rec.prompt;
+    this.select(0);
+    this.play();
+  },
+  pass() { return this.rec.passes[this.i]; },
+  end() { return this.pass().send + 800; },
+  select(i) {
+    this.i = Math.max(0, Math.min(this.rec.passes.length - 1, i));
+    this.t = -300;
+    const p = this.pass();
+    $('#rp-label').textContent = `Pass ${this.i + 1} of ${this.rec.passes.length} · ${gripName(p.grip)}`;
+    $('#rp-scrub').max = this.end();
+    this.render();
+  },
+  play() {
+    if (this.t >= this.end()) this.t = -300;
+    this.playing = true;
+    $('#rp-play').textContent = '❚❚';
+    this.last = performance.now();
+    cancelAnimationFrame(this.raf);
+    this.raf = requestAnimationFrame(n => this.tick(n));
+  },
+  pause() {
+    this.playing = false;
+    $('#rp-play').textContent = '▶';
+    cancelAnimationFrame(this.raf);
+  },
+  tick(now) {
+    if (!this.playing) return;
+    this.t += (now - this.last) * this.speed;
+    this.last = now;
+    if (this.t >= this.end()) {
+      if (this.i < this.rec.passes.length - 1) { this.select(this.i + 1); this.t = -600; }
+      else { this.t = this.end(); this.render(); return this.pause(); }
+    }
+    this.render();
+    this.raf = requestAnimationFrame(n => this.tick(n));
+  },
+  render() {
+    const p = this.pass(), t = this.t, st = rebuild(p.ev, this.rec.kb, t);
+    renderMsg($('#rp-box'), $('#rp-msg'), st.text);
+    $('#rp-time').textContent = `${(Math.max(0, Math.min(t, p.send)) / 1000).toFixed(1)} s · ${st.text.length}/${LIMIT}`;
+    $('#rp-pos').textContent = `${this.i + 1}/${this.rec.passes.length}`;
+    $('#rp-scrub').value = Math.max(0, t);
+    $('#rp-send').classList.toggle('flash', t >= p.send && t < p.send + 200);
+    this.kb.setLayer(st.layer, st.shift);
+    const taps = p.ev.filter(e => e[2] !== 'rep');
+    this.kb.showDown(new Set(taps.filter(e => t >= e[0] && t < e[0] + Math.max(e[1], 60)).map(e => keyId(e[2]))));
+    // Only recent taps, so a long message doesn't fill the keyboard with dots.
+    const recent = e => e[0] <= t && t - e[0] < 1500;
+    this.kb.showDots([
+      ...taps.filter(recent).map(e => ({ x: e[3], y: e[4], old: t > e[0] + Math.max(e[1], 60) + 250 })),
+      ...(p.blocked || []).filter(recent).map(b => ({ x: b[2], y: b[3], blocked: true })),
+    ]);
+  },
+};
+$('#rp-play').onclick = () => Replay.playing ? Replay.pause() : Replay.play();
+$('#rp-prev').onclick = () => { Replay.select(Replay.i - 1); if (Replay.playing) Replay.play(); };
+$('#rp-next').onclick = () => { Replay.select(Replay.i + 1); if (Replay.playing) Replay.play(); };
+$('#rp-scrub').oninput = e => { Replay.pause(); Replay.t = +e.target.value; Replay.render(); };
+$('#rp-speed').onclick = () => {
+  Replay.speed = { 1: 2, 2: 4, 4: 0.5, 0.5: 1 }[Replay.speed];
+  $('#rp-speed').textContent = Replay.speed + '×';
+};
+$('#rp-back').onclick = () => { Replay.pause(); show('s-result'); };
+
+// ---------- Intro / loading ----------
+if (IS_IOS && !navigator.standalone) $('#ios-hint').hidden = false;
+$('#btn-start').onclick = startSession;
+$('#btn-load').onclick = () => $('#file').click();
+$('#file').onchange = async e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  try { showResult(validate(JSON.parse(await f.text())), false); }
+  catch (_) { toast('That file is not a valid recording'); }
+};
+
+// Manifest so "Add to Home Screen" opens full screen on Android.
+try {
+  const manifest = {
+    name: 'Typing Recorder', short_name: 'Typing Recorder', display: 'fullscreen', orientation: 'portrait',
+    start_url: baseUrl(), background_color: '#f6f6f3', theme_color: '#f6f6f3',
+  };
+  const link = Object.assign(document.createElement('link'), {
+    rel: 'manifest', href: 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest)),
+  });
+  document.head.appendChild(link);
+} catch (_) {}
+</script>
+</body>
+</html>

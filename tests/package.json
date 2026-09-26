@@ -1,0 +1,10 @@
+{
+  "name": "typing-recorder-tests",
+  "private": true,
+  "scripts": {
+    "e2e": "node e2e.js"
+  },
+  "devDependencies": {
+    "playwright-core": "^1"
+  }
+}
