@@ -29,7 +29,7 @@ There's no autocorrect, word suggestions, emoji, cursor movement or text selecti
 ## Run / host
 - Local: `python3 -m http.server 8000`, then open `http://<your-LAN-ip>:8000/` on a phone.
 - Real use: put `index.html` on any static HTTPS host. The native share sheet needs HTTPS.
-- iPhone Safari can't hide its own browser bars. For true full screen, participants use **Share → Add to Home Screen**.
+- iPhone Safari can't hide its own browser bars. For true full screen, participants add the test to their Home Screen: the intro shows the steps for their browser (Safari, Chrome, iPad), or a link to the hosted copy when the page is embedded.
 
 ## URL parameters
 | Param | Meaning |
