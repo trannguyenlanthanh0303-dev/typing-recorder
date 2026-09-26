@@ -2,7 +2,7 @@
 
 A single static `index.html` with no dependencies and no backend. Participants write short text messages (up to 200 characters each) for 3 texting prompts, on an on-screen keyboard that copies their phone's own keyboard. All labels are visible and the text shows as it's typed: the aim is to record natural typing behaviour, not to test memory. Every tap is recorded so the session can be replayed and analyzed.
 
-Sister project of [memory-typing-game](https://github.com/truongkimson/memory-typing-game).
+Sister project of [memory-typing-game](https://github.com/trannguyenlanthanh0303-dev/memory-typing-game).
 
 ## Flow: 3 prompts × 2 grips
 Every participant goes through the same 3 prompts, in order (`PROMPTS` in the script):
