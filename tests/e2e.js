@@ -57,7 +57,21 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     };
     const live = () => page.evaluate(() => S.st.text);
 
-    // ---- Pass 1
+    // Prompts 2 and 3 with the current grip.
+    const more = [['Happy birthday!!', 'Happy bday!!'], ['Can you feed my cat on Sat?', 'Could u feed my cat Sat?']];
+    const rest = async pi => {
+      for (let r = 1; r <= 2; r++) {
+        await page.waitForFunction(([r, pi]) => $('#s-pass').classList.contains('on') && S.r === r && S.p === pi, [r, pi]); await page.waitForTimeout(450);
+        if (skin === 'ios' && r === 1 && pi === 0) await page.screenshot({ path: `${out}next-prompt.png` });
+        check(`${skin} part ${pi + 1} prompt ${r + 1} reminder`, await page.evaluate(() => $('#p-title').textContent === 'Next prompt'));
+        await page.tap('#btn-pass');
+        await page.waitForFunction(() => S.kb && S.kb.enabled);
+        check(`${skin} part ${pi + 1} prompt ${r + 1} shown`, await page.evaluate(([r, pi]) => $('#t-prompt').textContent.startsWith(PROMPTS[r]) && $('#t-prog').textContent.startsWith(`Part ${pi + 1} of 2 · Prompt ${r + 1} of 3`), [r, pi]));
+        await typeText(more[r - 1][pi]);
+        await page.tap('#t-send');
+      }
+    };
+    // ---- Part 1: comfortable grip
     await page.waitForSelector('#s-pass.on'); await page.waitForTimeout(450);
     if (skin === 'ios') await page.screenshot({ path: `${out}pass1-intro.png` });
     await page.tap('#btn-pass');
@@ -70,8 +84,9 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     check(`${skin} pass 1 live text`, await live() === exp1, JSON.stringify(await live()));
     await page.screenshot({ path: `${out}${skin}-compose.png` });
     await page.tap('#t-send');
+    await rest(0);
 
-    // ---- Prompt 1, text 2
+    // ---- Part 2: non-dominant thumb
     await page.waitForFunction(() => $('#s-pass').classList.contains('on') && $('#p-title').textContent.startsWith('Non-dominant')); await page.waitForTimeout(450);
     if (skin === 'ios') await page.screenshot({ path: `${out}pass2-intro.png` });
     await page.tap('#btn-pass');
@@ -91,18 +106,7 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     const m = t2.match(/^Tired but gooda OK :\) (z*)$/);
     check(`${skin} pass 2 text + held ⌫`, !!m && m[1].length <= 6 && m[1].length >= 2, JSON.stringify(t2));
     await page.tap('#t-send');
-
-    // ---- Prompts 2 and 3, both grips
-    const more = [['Happy birthday!! 🎂', 'Happy bday!!'], ['Can you feed my cat on Sat?', 'Could u feed my cat Sat?']];
-    for (let r = 1; r <= 2; r++) for (let pi = 0; pi < 2; pi++) {
-      await page.waitForFunction(([r, pi]) => $('#s-pass').classList.contains('on') && S.r === r && S.p === pi, [r, pi]); await page.waitForTimeout(450);
-      if (skin === 'ios' && r === 1 && pi === 0) await page.screenshot({ path: `${out}prompt2-intro.png` });
-      await page.tap('#btn-pass');
-      await page.waitForFunction(() => S.kb && S.kb.enabled);
-      check(`${skin} prompt ${r + 1} shown`, await page.evaluate(r => $('#t-prompt').textContent.startsWith(PROMPTS[r]) && $('#t-prog').textContent.startsWith(`Prompt ${r + 1} of 3 · Text`), r));
-      await typeText(more[r - 1][pi].replace(' 🎂', ''));
-      await page.tap('#t-send');
-    }
+    await rest(1);
 
     // ---- Results
     await page.waitForSelector('#s-result.on');
@@ -140,9 +144,10 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     await p2.screenshot({ path: `${out}${skin}-replay.png` });
     const mid = await p2.evaluate(() => ({ text: $('#rp-msg').textContent, dots: document.querySelectorAll('#rp-kb .dot').length, down: document.querySelectorAll('#rp-kb .key.down').length }));
     check(`${skin} replay mid-pass`, exp1.startsWith(mid.text.replace('\n', '\n')) || mid.text.length > 0, JSON.stringify(mid));
-    await p2.evaluate(() => { Replay.select(4); Replay.t = Replay.end(); Replay.render(); });
-    check(`${skin} replay end = sent text`, await p2.evaluate(() => $('#rp-msg').textContent === Replay.pass().text && $('#rp-prompt').textContent === PROMPTS[2] && $('#rp-pos').textContent === '5/6'));
-    await p2.evaluate(() => { Replay.select(1); Replay.t = Replay.pass().blocked[0][0] + 10; Replay.render(); });
+    await p2.evaluate(() => { Replay.select(5); Replay.t = Replay.end(); Replay.render(); });
+    check(`${skin} replay end = sent text`, await p2.evaluate(() => $('#rp-msg').textContent === Replay.pass().text && $('#rp-prompt').textContent === PROMPTS[2] && $('#rp-pos').textContent === '6/6'));
+    check(`${skin} replay in written order`, await p2.evaluate(() => Replay.items.map(it => it.label).join('|')) === 'Comfortable grip · Prompt 1|Comfortable grip · Prompt 2|Comfortable grip · Prompt 3|Non-dominant thumb · Prompt 1|Non-dominant thumb · Prompt 2|Non-dominant thumb · Prompt 3');
+    await p2.evaluate(() => { Replay.select(3); Replay.t = Replay.pass().blocked[0][0] + 10; Replay.render(); });
     check(`${skin} replay blocked dot`, await p2.evaluate(() => document.querySelectorAll('#rp-kb .dot.blocked').length === 1));
     if (skin === 'gboard') await p2.screenshot({ path: `${out}replay-blocked.png` });
     check(`${skin} no page errors`, !errs.length && !errs2.length, JSON.stringify([errs, errs2]));

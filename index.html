@@ -180,8 +180,8 @@ ol.steps li::before {
 
     <h2>How it works</h2>
     <ol class="steps">
-      <li>You'll get <b>3 prompts</b> and write <b>2 short texts</b> for each (up to 200 characters).</li>
-      <li><b>Text 1:</b> hold your phone however is comfortable.<br><b>Text 2:</b> use only the thumb of your non-dominant hand.</li>
+      <li>You'll write a short text (up to 200 characters) for each of <b>3 prompts</b>, then do all 3 again.</li>
+      <li><b>First 3 texts:</b> hold your phone however is comfortable.<br><b>Last 3 texts:</b> use only the thumb of your non-dominant hand.</li>
       <li>Type as you normally would, typos and all, then tap <b>Send</b>. There's no autocorrect.</li>
       <li>At the end, tap <b>Share recording</b> to send it to the researcher.</li>
     </ol>
@@ -269,7 +269,7 @@ const PASSES = [
   {
     grip: 'comfortable', title: 'Your most comfortable grip', short: 'Comfortable grip',
     how: 'Hold your phone however is most comfortable: one hand or two, any fingers.',
-    again: 'Back to your most comfortable grip: one hand or two, any fingers.',
+    keep: 'Keep your most comfortable grip.',
     task: 'Type the way you normally would when texting.',
     hint: 'Comfortable grip', maxTouches: Infinity,
   },
@@ -277,7 +277,8 @@ const PASSES = [
     grip: 'nondominant-thumb', title: 'Non-dominant hand, thumb only', short: 'Non-dominant thumb',
     how: 'Hold your phone in your non-dominant hand only (your left if you\'re right-handed) and type with its thumb.',
     task: 'Only one touch counts at a time.',
-    note: 'Same prompt as before, but your second text doesn\'t have to have the same content or length as the first one.',
+    keep: 'Keep using only the thumb of your non-dominant hand.',
+    note: 'Same 3 prompts as before, but your texts don\'t have to have the same content or length as the first ones.',
     hint: 'Non-dominant thumb only', maxTouches: 1,
   },
 ];
@@ -720,12 +721,14 @@ async function startSession() {
   showPassIntro();
 }
 
-const stepLabel = () => `Prompt ${S.r + 1} of ${PROMPTS.length} · Text ${S.p + 1} of ${PASSES.length}`;
+const stepLabel = () => `Part ${S.p + 1} of ${PASSES.length} · Prompt ${S.r + 1} of ${PROMPTS.length}`;
 function showPassIntro() {
   const P = PASSES[S.p];
   $('#p-step').textContent = stepLabel();
-  $('#p-title').textContent = P.title;
-  $('#p-body').innerHTML = `<p class="grip">${esc(S.r && P.again ? P.again : P.how)}</p><p>${esc(P.task)}</p>${P.note ? `<p class="note">${esc(P.note)}</p>` : ''}`;
+  // Full grip instructions open each part; between prompts, just a reminder.
+  $('#p-title').textContent = S.r ? 'Next prompt' : P.title;
+  $('#p-body').innerHTML = S.r ? `<p class="grip">${esc(P.keep)}</p>`
+    : `<p class="grip">${esc(P.how)}</p><p>${esc(P.task)}</p>${P.note ? `<p class="note">${esc(P.note)}</p>` : ''}`;
   $('#btn-pass').textContent = 'Begin';
   $('#btn-pass').onclick = beginPass;
   show('s-pass');
@@ -807,8 +810,8 @@ $('#t-send').onclick = () => {
   const pass = { grip: PASSES[S.p].grip, text: S.st.text, ev: S.ev, send: t };
   if (S.blocked.length) pass.blocked = S.blocked;
   S.rec.rounds[S.r].passes.push(pass);
-  if (++S.p === PASSES.length) { S.p = 0; S.r++; }
-  if (S.r < PROMPTS.length) showPassIntro();
+  if (++S.r === PROMPTS.length) { S.r = 0; S.p++; } // all prompts with one grip, then all with the next
+  if (S.p < PASSES.length) showPassIntro();
   else showResult(S.rec, true);
 };
 
@@ -892,9 +895,9 @@ const Replay = {
       this.kb = new Keyboard($('#rp-kb'), rec.kb);
     }
     this.kb.mount($('#rp-kb'));
-    this.items = rec.rounds.flatMap((r, ri) => r.passes.map((p, pi) => ({
-      p, prompt: r.prompt, label: `Prompt ${ri + 1} · Text ${pi + 1} · ${gripName(p.grip)}`,
-    })));
+    // In the order they were written: every prompt with one grip, then with the next.
+    const items = rec.rounds.flatMap((r, ri) => r.passes.map((p, pi) => ({ p, pi, ri, prompt: r.prompt, label: `${gripName(p.grip)} · Prompt ${ri + 1}` })));
+    this.items = items.sort((a, b) => a.pi - b.pi || a.ri - b.ri);
     this.select(0);
     this.play();
   },

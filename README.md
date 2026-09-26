@@ -10,11 +10,11 @@ Every participant goes through the same 3 prompts, in order (`PROMPTS` in the sc
 2. "Imagine you're texting a friend to wish them a happy birthday."
 3. "Imagine you're texting a friend to ask them for a small favour."
 
-Each prompt is answered twice, back to back (grips as in the Finger Reach Test):
-- **Text 1, most comfortable grip:** one hand or two, any fingers or thumbs.
-- **Text 2, non-dominant hand, thumb only:** the keyboard accepts one touch at a time. Extra fingers are ignored and don't type, but they're recorded as `blocked`. The screen before it says the second text doesn't have to match the first in content or length.
+The test has two parts (grips as in the Finger Reach Test). Each part covers all 3 prompts:
+- **Part 1, most comfortable grip:** one hand or two, any fingers or thumbs.
+- **Part 2, non-dominant hand, thumb only:** the keyboard accepts one touch at a time. Extra fingers are ignored and don't type, but they're recorded as `blocked`. The part starts with a note that the texts don't have to match the first ones in content or length.
 
-That makes 6 texts, each opened by a short grip instruction. The results show per-grip averages per text, then both texts for each prompt.
+That makes 6 texts. Each part opens with its grip instructions, and there's a short "Next prompt" screen with a grip reminder between prompts. The results show per-grip averages per text, then both texts for each prompt. Replay goes in the order the texts were written.
 
 ## Keyboard
 Skins: `ios`, `gboard`, `samsung`. Each has three layers: letters, numbers + symbols, and more symbols. It works like a real phone keyboard:
@@ -56,7 +56,7 @@ Recordings are only JSON files; there's no replay link, because a whole message'
   ]
 }
 ```
-- `rounds`: one per prompt, in the order shown; `passes`: that prompt's texts, in the order written (comfortable, then non-dominant thumb).
+- `rounds`: one per prompt, in prompt order. `passes`: that prompt's two texts (comfortable, then non-dominant thumb). The writing order was: all 3 comfortable texts, then all 3 thumb texts.
 - `text`: the message as sent. It can be rebuilt from `ev`; it's included for convenience.
 - `send`: ms after the prompt appeared when Send was tapped. Every text has its own clock.
 - `ev`: `[t, holdMs, key, x, y, layer]`, in the order the keys took effect.
