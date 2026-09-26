@@ -18,7 +18,7 @@ Skins: `ios`, `gboard`, `samsung`. Each has three layers: letters, numbers + sym
 - on iPhone, typing a space or `'` on a number layer returns to letters;
 - return/enter types a new line. The message is sent with the **Send** button above the keyboard, as in a messaging app.
 
-There's no autocorrect, word suggestions, emoji, cursor movement or text selection. The emoji, globe and mic keys don't type anything, but taps on them are recorded. Key geometry is estimated, not measured on real devices.
+There's no autocorrect, word suggestions, emoji, cursor movement or text selection. The emoji, globe and mic keys don't type anything, but taps on them are recorded. Samsung's letters page and first symbols page (`!#1`) are measured from screenshots of a real One UI keyboard with **Number keys** turned on, as on the reference phone: 5 rows, with a shorter number row on top. Samsung's `2/2` page, the Samsung layout without the number row (`?nr=0`), and the iOS and Gboard skins are estimated. The empty suggestion/toolbar strip above the keys is kept at its real height, but its icons aren't drawn.
 
 ## Run / host
 - Local: `python3 -m http.server 8000`, then open `http://<your-LAN-ip>:8000/` on a phone.
@@ -30,6 +30,7 @@ There's no autocorrect, word suggestions, emoji, cursor movement or text selecti
 |---|---|
 | `?p=1` | Fixed prompt (1–5, see `PROMPTS`). Otherwise the prompt is picked from the seed. |
 | `?seed=abc` | Fixed seed, so the same prompt for everyone (unless `p` is set). |
+| `?nr=0` | Samsung only: letters page without the number row (for people who turned **Number keys** off). |
 | `?kb=ios\|gboard\|samsung` | Force a keyboard skin. By default it's detected: iOS → `ios`, Samsung (model `SM-…`) → `samsung`, other Android → `gboard`. |
 
 ## Collecting data

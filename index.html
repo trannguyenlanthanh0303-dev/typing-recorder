@@ -386,22 +386,32 @@ const SKINS = {
       },
     };
   },
-  // Samsung Keyboard (One UI), ~360dp-wide screen.
+  // Samsung Keyboard (One UI), measured from screenshots: x in px on a 947px-wide capture, y/h in dp.
+  // Five rows: a short number row, then four 40dp rows. The letters page has the number row when
+  // "Number keys" is on (?nr=0 turns it off; that layout is estimated, not measured).
   samsung() {
-    const layer = (r1, r2, r3, mode) => {
-      const keys = [], g = 5 / 360, r = (y, spec) => unitRow(keys, y, 44, g, spec);
-      r(6, chars(r1));
-      r(58, r2.length === 9 ? [[null, .5], ...chars(r2)] : chars(r2));
-      r(110, [r3[0], ...chars(r3[1]), ['bksp', 1.5]]);
-      r(162, [mode, [',', 1], [' ', 5, 'English (US)'], ['.', 1], ['enter', 1.5]]);
-      return keys;
-    };
+    const X = px => px / 947, P = 92.2, K = 75;
+    const col = i => 22 + P * i, half = i => 68 + P * i; // full grid (q row) and half-offset grid (a row)
+    const nr = params.get('nr') !== '0';
+    const rowsWith = { y: [7, 48, 97, 146, 196], h: [32, 40, 40, 40, 40] };
+    const rowsWithout = { y: [7, 7, 65, 123, 181], h: [0, 50, 50, 50, 50] };
+    const layer = (rows, spec) => spec.map(([k, x0, x1, r, label]) => ({ k, label, x: X(x0), w: X(x1 - x0), y: rows.y[r], h: rows.h[r] }));
+    const grid = (str, r, pos) => [...str].map((c, i) => [c, pos(i), pos(i) + K, r]);
+    const bottom = (k, label) => [[k, 22, 142, 4, label], [',', half(1), half(1) + K, 4], [' ', half(2), half(6) + K, 4, 'English (US)'],
+      ['.', half(7), half(7) + K, 4], ['enter', 805, 925, 4]];
+    const row4 = (left, label, str) => [[left, 22, 128, 3, label], ...grid(str, 3, i => half(i + 1)), ['bksp', 820, 925, 3]];
+    const sym = (r2, r3, r4, left, label) => layer(rowsWith, [
+      ...grid('1234567890', 0, col), ...grid(r2, 1, col), ...grid(r3, 2, col), ...row4(left, label, r4), ...bottom('abc', 'ABC'),
+    ]);
     return {
-      toolbar: 44, areaH: 214, strip: 0,
+      toolbar: 41, areaH: 242, strip: 0,
       layers: {
-        a: layer('qwertyuiop', 'asdfghjkl', [['shift', 1.5], 'zxcvbnm'], ['123', 1.5, '!#1']),
-        1: layer('1234567890', '!@#$%&*()-', [['sym', 1.5, '1/2'], '\'":;/?+'], ['abc', 1.5, 'ABC']),
-        2: layer('+×÷=/_<>[]', '€£¥₩^°{}\\|', [['123', 1.5, '2/2'], '~`•©®™✓'], ['abc', 1.5, 'ABC']),
+        a: layer(nr ? rowsWith : rowsWithout, [
+          ...(nr ? grid('1234567890', 0, col) : []), ...grid('qwertyuiop', 1, col), ...grid('asdfghjkl', 2, half),
+          ...row4('shift', undefined, 'zxcvbnm'), ...bottom('123', '!#1'),
+        ]),
+        1: sym('+×÷=/_€£¥₩', '!@#$%^&*()', '-\'":;,?', 'sym', '1/2'),
+        2: sym('`~\\|<>{}[]', '°•○●□■♤♡◇♧', '☆▪¤《》¡¿', '123', '2/2'), // page 2/2 not measured: from memory
       },
     };
   },
