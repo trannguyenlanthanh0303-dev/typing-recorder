@@ -1,20 +1,19 @@
 # Typing Recorder
 
-A single static `index.html` with no dependencies and no backend. Participants write short text messages (up to 200 characters each) for 3 texting prompts, on an on-screen keyboard that copies their phone's own keyboard. All labels are visible and the text shows as it's typed: the aim is to record natural typing behaviour, not to test memory. Every tap is recorded so the session can be replayed and analyzed.
+A single static `index.html` with no dependencies and no backend. Participants write short text messages (up to 200 characters each) for 2 texting prompts, on an on-screen keyboard that copies their phone's own keyboard. All labels are visible and the text shows as it's typed: the aim is to record natural typing behaviour, not to test memory. Every tap is recorded so the session can be replayed and analyzed.
 
 Sister project of [memory-typing-game](https://github.com/trannguyenlanthanh0303-dev/memory-typing-game).
 
-## Flow: 3 prompts × 2 grips
-Every participant goes through the same 3 prompts, in order (`PROMPTS` in the script):
+## Flow: 2 prompts × 2 grips
+Every participant goes through the same 2 prompts, in order (`PROMPTS` in the script):
 1. "Imagine you're texting your friend to tell them about your day."
-2. "Imagine you're texting a friend to wish them a happy birthday."
-3. "Imagine you're texting a friend to ask them for a small favour."
+2. "Imagine you're texting a friend to ask them for a small favour."
 
-The test has two parts (grips as in the Finger Reach Test). Each part covers all 3 prompts:
+The test has two parts (grips as in the Finger Reach Test). Each part covers both prompts:
 - **Part 1, most comfortable grip:** one hand or two, any fingers or thumbs.
-- **Part 2, non-dominant hand, thumb only:** the keyboard accepts one touch at a time. Extra fingers are ignored and don't type, but they're recorded as `blocked`. The part starts with a note that the texts don't have to match the first ones in content or length.
+- **Part 2, non-dominant hand, thumb only:** the keyboard accepts one touch at a time. Extra fingers are ignored and don't type, but they're recorded as `blocked`.
 
-That makes 6 texts. Each part opens with its grip instructions, and there's a short "Next prompt" screen with a grip reminder between prompts. The results show per-grip averages per text, then both texts for each prompt. Replay goes in the order the texts were written.
+That makes 4 texts. Each part opens with a one-line grip instruction, and there's a short "Next prompt" screen with a grip reminder between prompts. The results show per-grip averages per text, then both texts for each prompt. Replay goes in the order the texts were written.
 
 ## Keyboard
 Skins: `ios`, `gboard`, `samsung`. Each has three layers: letters, numbers + symbols, and more symbols. It works like a real phone keyboard:
@@ -53,11 +52,11 @@ The `.txt` file's content is this JSON:
           "ev": [[1830, 92, "H", 612, 380, "A"], [2010, 85, "i", 776, 90, "a"], [2400, 640, "bksp", 955, 630, "a"], [2900, 0, "rep", 955, 630, "a"]] },
         { "grip": "nondominant-thumb", "text": "…", "send": 52010, "ev": [], "blocked": [[1210, "n", 702, 640, "a"]] }
       ] },
-    { "prompt": "Imagine you're texting a friend to wish them a happy birthday.", "passes": [] }
+    { "prompt": "Imagine you're texting a friend to ask them for a small favour.", "passes": [] }
   ]
 }
 ```
-- `rounds`: one per prompt, in prompt order. `passes`: that prompt's two texts (comfortable, then non-dominant thumb). The writing order was: all 3 comfortable texts, then all 3 thumb texts.
+- `rounds`: one per prompt, in prompt order. `passes`: that prompt's two texts (comfortable, then non-dominant thumb). The writing order was: both comfortable texts, then both thumb texts.
 - `text`: the message as sent. It can be rebuilt from `ev`; it's included for convenience.
 - `send`: ms after the prompt appeared when Send was tapped. Every text has its own clock.
 - `ev`: `[t, holdMs, key, x, y, layer]`, in the order the keys took effect.
@@ -82,4 +81,4 @@ The metrics in the app are computed from `ev`: characters, WPM (5 chars = 1 word
 python3 -m http.server 8765          # repo root
 cd tests && npm install && npm run e2e   # needs Node 20+ and Google Chrome
 ```
-The test goes through all 3 prompts × 2 grips on each skin through the real keyboard: capitals, symbol layers, double-space period, ⌫, held ⌫, caps lock and a blocked touch. It then checks that the text rebuilds exactly from the events, that **Share recording** sends one `.txt` file (and downloads a `.txt` when sharing fails or isn't available), the file round trip for both `.txt` and older `.json` files, the replay, and the edit rules (200-character limit, iOS layer return, auto-capitals). Screenshots go to `tests/out/`.
+The test goes through both prompts × 2 grips on each skin through the real keyboard: capitals, symbol layers, double-space period, ⌫, held ⌫, caps lock and a blocked touch. It then checks that the text rebuilds exactly from the events, that **Share recording** sends one `.txt` file (and downloads a `.txt` when sharing fails or isn't available), the file round trip for both `.txt` and older `.json` files, the replay, and the edit rules (200-character limit, iOS layer return, auto-capitals). Screenshots go to `tests/out/`.

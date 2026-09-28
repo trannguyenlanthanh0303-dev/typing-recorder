@@ -57,16 +57,16 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     };
     const live = () => page.evaluate(() => S.st.text);
 
-    // Prompts 2 and 3 with the current grip.
-    const more = [['Happy birthday!!', 'Happy bday!!'], ['Can you feed my cat on Sat?', 'Could u feed my cat Sat?']];
+    // Prompt 2 with the current grip.
+    const more = [['Can you feed my cat on Sat?', 'Could u feed my cat Sat?']];
     const rest = async pi => {
-      for (let r = 1; r <= 2; r++) {
+      for (let r = 1; r < 2; r++) {
         await page.waitForFunction(([r, pi]) => $('#s-pass').classList.contains('on') && S.r === r && S.p === pi, [r, pi]); await page.waitForTimeout(450);
         if (skin === 'ios' && r === 1 && pi === 0) await page.screenshot({ path: `${out}next-prompt.png` });
         check(`${skin} part ${pi + 1} prompt ${r + 1} reminder`, await page.evaluate(() => $('#p-title').textContent === 'Next prompt'));
         await page.tap('#btn-pass');
         await page.waitForFunction(() => S.kb && S.kb.enabled);
-        check(`${skin} part ${pi + 1} prompt ${r + 1} shown`, await page.evaluate(([r, pi]) => $('#t-prompt').textContent.startsWith(PROMPTS[r]) && $('#t-prog').textContent.startsWith(`Part ${pi + 1} of 2 · Prompt ${r + 1} of 3`), [r, pi]));
+        check(`${skin} part ${pi + 1} prompt ${r + 1} shown`, await page.evaluate(([r, pi]) => $('#t-prompt').textContent.startsWith(PROMPTS[r]) && $('#t-prog').textContent.startsWith(`Part ${pi + 1} of 2 · Prompt ${r + 1} of 2`), [r, pi]));
         await typeText(more[r - 1][pi]);
         await page.tap('#t-send');
       }
@@ -74,6 +74,7 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     // ---- Part 1: comfortable grip
     await page.waitForSelector('#s-pass.on'); await page.waitForTimeout(450);
     if (skin === 'ios') await page.screenshot({ path: `${out}pass1-intro.png` });
+    check(`${skin} part 1 intro is one line`, await page.evaluate(() => $('#p-body').querySelectorAll('p').length === 1));
     await page.tap('#btn-pass');
     await page.waitForFunction(() => S.kb && S.kb.enabled);
     await page.screenshot({ path: `${out}${skin}-compose-empty.png` });
@@ -89,6 +90,7 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     // ---- Part 2: non-dominant thumb
     await page.waitForFunction(() => $('#s-pass').classList.contains('on') && $('#p-title').textContent.startsWith('Non-dominant')); await page.waitForTimeout(450);
     if (skin === 'ios') await page.screenshot({ path: `${out}pass2-intro.png` });
+    check(`${skin} part 2 intro is one line`, await page.evaluate(() => $('#p-body').querySelectorAll('p').length === 1));
     await page.tap('#btn-pass');
     await page.waitForFunction(() => S.kb && S.kb.enabled && S.r === 0 && S.p === 1);
     check(`${skin} pass 2 starts empty`, await live() === '');
@@ -124,12 +126,12 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
       json: JSON.stringify(S.rec).length,
     }));
     console.log(skin, JSON.stringify(res));
-    check(`${skin} recording shape`, res.app === 'typing-recorder' && res.v === 2 && res.kb === skin && res.prompts && res.grips.every(g => g === 'comfortable,nondominant-thumb') && res.grips.length === 3);
-    check(`${skin} prompts 2-3 texts`, res.texts.join(' | ') === 'Happy birthday!! / Happy bday!! | Can you feed my cat on Sat? / Could u feed my cat Sat?', JSON.stringify(res.texts));
-    check(`${skin} text rebuilt from events`, res.rebuilt.length === 6 && res.rebuilt.every(Boolean));
+    check(`${skin} recording shape`, res.app === 'typing-recorder' && res.v === 2 && res.kb === skin && res.prompts && res.grips.every(g => g === 'comfortable,nondominant-thumb') && res.grips.length === 2);
+    check(`${skin} prompt 2 texts`, res.texts.join(' | ') === 'Can you feed my cat on Sat? / Could u feed my cat Sat?', JSON.stringify(res.texts));
+    check(`${skin} text rebuilt from events`, res.rebuilt.length === 4 && res.rebuilt.every(Boolean));
     check(`${skin} ⌫ repeats recorded`, res.reps >= 1);
-    check(`${skin} blocked touch`, res.blocked === '010000', res.blocked);
-    check(`${skin} one result card per prompt`, res.cards === 3);
+    check(`${skin} blocked touch`, res.blocked === '0100', res.blocked);
+    check(`${skin} one result card per prompt`, res.cards === 2);
     check(`${skin} layer codes`, res.layers === '12ACa' || res.layers === '1ACa', res.layers);
 
     // ---- Share recording: one .txt file (Chrome on Android won't share .json)
@@ -173,10 +175,10 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     await p2.screenshot({ path: `${out}${skin}-replay.png` });
     const mid = await p2.evaluate(() => ({ text: $('#rp-msg').textContent, dots: document.querySelectorAll('#rp-kb .dot').length, down: document.querySelectorAll('#rp-kb .key.down').length }));
     check(`${skin} replay mid-pass`, exp1.startsWith(mid.text.replace('\n', '\n')) || mid.text.length > 0, JSON.stringify(mid));
-    await p2.evaluate(() => { Replay.select(5); Replay.t = Replay.end(); Replay.render(); });
-    check(`${skin} replay end = sent text`, await p2.evaluate(() => $('#rp-msg').textContent === Replay.pass().text && $('#rp-prompt').textContent === PROMPTS[2] && $('#rp-pos').textContent === '6/6'));
-    check(`${skin} replay in written order`, await p2.evaluate(() => Replay.items.map(it => it.label).join('|')) === 'Comfortable grip · Prompt 1|Comfortable grip · Prompt 2|Comfortable grip · Prompt 3|Non-dominant thumb · Prompt 1|Non-dominant thumb · Prompt 2|Non-dominant thumb · Prompt 3');
-    await p2.evaluate(() => { Replay.select(3); Replay.t = Replay.pass().blocked[0][0] + 10; Replay.render(); });
+    await p2.evaluate(() => { Replay.select(3); Replay.t = Replay.end(); Replay.render(); });
+    check(`${skin} replay end = sent text`, await p2.evaluate(() => $('#rp-msg').textContent === Replay.pass().text && $('#rp-prompt').textContent === PROMPTS[1] && $('#rp-pos').textContent === '4/4'));
+    check(`${skin} replay in written order`, await p2.evaluate(() => Replay.items.map(it => it.label).join('|')) === 'Comfortable grip · Prompt 1|Comfortable grip · Prompt 2|Non-dominant thumb · Prompt 1|Non-dominant thumb · Prompt 2');
+    await p2.evaluate(() => { Replay.select(2); Replay.t = Replay.pass().blocked[0][0] + 10; Replay.render(); });
     check(`${skin} replay blocked dot`, await p2.evaluate(() => document.querySelectorAll('#rp-kb .dot.blocked').length === 1));
     if (skin === 'gboard') await p2.screenshot({ path: `${out}replay-blocked.png` });
     check(`${skin} no page errors`, !errs.length && !errs2.length, JSON.stringify([errs, errs2]));

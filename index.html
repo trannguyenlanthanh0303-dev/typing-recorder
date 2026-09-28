@@ -65,8 +65,8 @@ ol.steps li::before {
 /* Compose */
 .stage { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 560px; margin: 0 auto; padding: calc(12px + var(--safe-t)) 14px 10px; user-select: none; -webkit-user-select: none; }
 .prog { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: center; }
-.prompt { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: 15px; line-height: 1.4; }
-.prompt small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.prompt { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; font-size: 17px; line-height: 1.4; }
+.prompt small { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; }
 .msgbox { flex: 1; min-height: 64px; overflow-y: auto; display: flex; flex-direction: column; }
 .msg {
   align-self: flex-end; margin-top: auto; max-width: 88%; background: var(--accent); color: var(--accent-fg); border-radius: 18px 18px 4px 18px;
@@ -180,8 +180,8 @@ ol.steps li::before {
 
     <h2>How it works</h2>
     <ol class="steps">
-      <li>You'll write a short text (up to 200 characters) for each of <b>3 prompts</b>, then do all 3 again.</li>
-      <li><b>First 3 texts:</b> hold your phone however is comfortable.<br><b>Last 3 texts:</b> use only the thumb of your non-dominant hand.</li>
+      <li>You'll write a short text (up to 200 characters) for each of <b>2 prompts</b>, then do both again.</li>
+      <li><b>First 2 texts:</b> hold your phone however is comfortable.<br><b>Last 2 texts:</b> use only the thumb of your non-dominant hand.</li>
       <li>Type as you normally would, typos and all, then tap <b>Send</b>. There's no autocorrect.</li>
       <li>At the end, tap <b>Share recording</b> to send it to the researcher.</li>
     </ol>
@@ -259,7 +259,6 @@ ol.steps li::before {
 // Every participant writes for all of these, in this order, twice each (one text per grip).
 const PROMPTS = [
   "Imagine you're texting your friend to tell them about your day.",
-  "Imagine you're texting a friend to wish them a happy birthday.",
   "Imagine you're texting a friend to ask them for a small favour.",
 ];
 const LIMIT = 200; // characters per message
@@ -268,17 +267,14 @@ const TASK = `Write a short text of no more than ${LIMIT} characters.`;
 const PASSES = [
   {
     grip: 'comfortable', title: 'Your most comfortable grip', short: 'Comfortable grip',
-    how: 'Hold your phone however is most comfortable: one hand or two, any fingers.',
+    how: 'Hold your phone however is comfortable and type as you normally would.',
     keep: 'Keep your most comfortable grip.',
-    task: 'Type the way you normally would when texting.',
     hint: 'Comfortable grip', maxTouches: Infinity,
   },
   {
     grip: 'nondominant-thumb', title: 'Non-dominant hand, thumb only', short: 'Non-dominant thumb',
-    how: 'Hold your phone in your non-dominant hand only (your left if you\'re right-handed) and type with its thumb.',
-    task: 'Only one touch counts at a time.',
+    how: 'Hold your phone in your non-dominant hand and type with its thumb only.',
     keep: 'Keep using only the thumb of your non-dominant hand.',
-    note: 'Same 3 prompts as before, but your texts don\'t have to have the same content or length as the first ones.',
     hint: 'Non-dominant thumb only', maxTouches: 1,
   },
 ];
@@ -728,7 +724,7 @@ function showPassIntro() {
   // Full grip instructions open each part; between prompts, just a reminder.
   $('#p-title').textContent = S.r ? 'Next prompt' : P.title;
   $('#p-body').innerHTML = S.r ? `<p class="grip">${esc(P.keep)}</p>`
-    : `<p class="grip">${esc(P.how)}</p><p>${esc(P.task)}</p>${P.note ? `<p class="note">${esc(P.note)}</p>` : ''}`;
+    : `<p class="grip">${esc(P.how)}</p>`;
   $('#btn-pass').textContent = 'Begin';
   $('#btn-pass').onclick = beginPass;
   show('s-pass');
