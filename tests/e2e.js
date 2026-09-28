@@ -7,7 +7,7 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
 (async () => {
   const browser = await chromium.launch({ channel: 'chrome' });
   for (const [skin, dev, scheme] of [['ios', 'iPhone 13', 'light'], ['gboard', 'Pixel 7', 'dark'], ['samsung', 'Galaxy S9+', 'light']]) {
-    const ctx = await browser.newContext({ ...devices[dev], colorScheme: scheme });
+    const ctx = await browser.newContext({ ...devices[dev], colorScheme: scheme, acceptDownloads: true });
     const page = await ctx.newPage();
     const errs = []; page.on('pageerror', e => errs.push(e.message));
     await page.goto(`${URL}?seed=test&kb=${skin}`);
@@ -132,13 +132,42 @@ const check = (label, ok, info = '') => { if (!ok) failed++; console.log(`${ok ?
     check(`${skin} one result card per prompt`, res.cards === 3);
     check(`${skin} layer codes`, res.layers === '12ACa' || res.layers === '1ACa', res.layers);
 
+    // ---- Share recording: one .txt file (Chrome on Android won't share .json)
+    await page.evaluate(() => {
+      navigator.canShare = () => true;
+      navigator.share = d => { window.__shared = d; return Promise.resolve(); };
+    });
+    await page.waitForTimeout(450); // screen transition
+    await page.tap('#btn-share');
+    await page.waitForFunction(() => window.__shared);
+    const shared = await page.evaluate(async () => {
+      const f = __shared.files;
+      return { n: f.length, name: f[0].name, type: f[0].type, same: await f[0].text() === JSON.stringify(S.rec) };
+    });
+    check(`${skin} share sends one .txt`, shared.n === 1 && shared.name === 'typing-recorder-test.txt' && shared.type.startsWith('text/plain') && shared.same, JSON.stringify(shared));
+    // Share refused (what Android did with .json) -> .txt download
+    await page.evaluate(() => { navigator.share = () => Promise.reject(new DOMException('no', 'NotAllowedError')); });
+    let dl = page.waitForEvent('download'); await page.tap('#btn-share');
+    check(`${skin} refused share downloads .txt`, (await dl).suggestedFilename() === 'typing-recorder-test.txt');
+    // No file sharing at all -> .txt download
+    await page.evaluate(() => { navigator.canShare = undefined; });
+    dl = page.waitForEvent('download'); await page.tap('#btn-share');
+    const d = await dl;
+    check(`${skin} no share sheet downloads .txt`, d.suggestedFilename() === 'typing-recorder-test.txt' && require('fs').readFileSync(await d.path(), 'utf8') === await page.evaluate(() => JSON.stringify(S.rec)));
+
     // ---- Load the file back and replay
     const json = await page.evaluate(() => JSON.stringify(S.rec));
     const p2 = await ctx.newPage(); const errs2 = []; p2.on('pageerror', e => errs2.push(e.message));
     await p2.goto(URL);
-    await p2.setInputFiles('#file', { name: 'rec.txt', mimeType: 'text/plain', buffer: Buffer.from(json) });
+    check(`${skin} load link says .txt`, (await p2.textContent('#btn-load')).includes('(.txt)'));
+    // Older .json recordings still load
+    await p2.setInputFiles('#file', { name: 'rec.json', mimeType: 'application/json', buffer: Buffer.from(json) });
     await p2.waitForSelector('#s-result.on');
-    check(`${skin} file round trip`, await p2.evaluate(o => JSON.stringify(S.rec) === o, json));
+    check(`${skin} .json file round trip`, await p2.evaluate(o => JSON.stringify(S.rec) === o, json));
+    await p2.evaluate(() => { S.rec = null; show('s-intro'); });
+    await p2.setInputFiles('#file', { name: 'typing-recorder-test.txt', mimeType: 'text/plain', buffer: Buffer.from(json) });
+    await p2.waitForSelector('#s-result.on');
+    check(`${skin} .txt file round trip`, await p2.evaluate(o => S.rec && JSON.stringify(S.rec) === o, json));
     await p2.waitForTimeout(450); await p2.tap('#btn-replay');
     await p2.evaluate(() => { Replay.pause(); Replay.select(0); const p = Replay.pass(); Replay.t = p.ev[Math.floor(p.ev.length * 0.6)][0] + 20; Replay.render(); });
     await p2.screenshot({ path: `${out}${skin}-replay.png` });

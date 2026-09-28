@@ -39,9 +39,10 @@ There's no autocorrect, word suggestions, emoji, cursor movement or text selecti
 | `?kb=ios\|gboard\|samsung` | Force a keyboard skin. By default it's detected: iOS → `ios`, Samsung (model `SM-…`) → `samsung`, other Android → `gboard`. |
 
 ## Collecting data
-Recordings are only JSON files; there's no replay link, because a whole message's taps are too big for a URL. **Share recording** sends `typing-recorder-<seed>.json` through the phone's share sheet. Chrome on Android can't share `.json`, so there it's sent as `.txt` with the same JSON. If the share sheet can't send files, the file is downloaded. To look at a file again, use **Load a recording** on the intro screen.
+Recordings are only files; there's no replay link, because a whole message's taps are too big for a URL. **Share recording** sends `typing-recorder-<seed>.txt` through the phone's share sheet. The file is plain text holding JSON: Chrome on Android won't share `.json` files and downloads them instead. If the share sheet can't send files, the `.txt` is downloaded. To look at a file again, use **Load a recording** on the intro screen. It opens `.txt` recordings and older `.json` ones.
 
 ## Recording format (v2)
+The `.txt` file's content is this JSON:
 ```json
 {
   "app": "typing-recorder", "v": 2, "kb": "ios", "seed": "k3j9", "limit": 200,
@@ -81,4 +82,4 @@ The metrics in the app are computed from `ev`: characters, WPM (5 chars = 1 word
 python3 -m http.server 8765          # repo root
 cd tests && npm install && npm run e2e   # needs Node 20+ and Google Chrome
 ```
-The test goes through all 3 prompts × 2 grips on each skin through the real keyboard: capitals, symbol layers, double-space period, ⌫, held ⌫, caps lock and a blocked touch. It then checks that the text rebuilds exactly from the events, the file round trip, the replay, and the edit rules (200-character limit, iOS layer return, auto-capitals). Screenshots go to `tests/out/`.
+The test goes through all 3 prompts × 2 grips on each skin through the real keyboard: capitals, symbol layers, double-space period, ⌫, held ⌫, caps lock and a blocked touch. It then checks that the text rebuilds exactly from the events, that **Share recording** sends one `.txt` file (and downloads a `.txt` when sharing fails or isn't available), the file round trip for both `.txt` and older `.json` files, the replay, and the edit rules (200-character limit, iOS layer return, auto-capitals). Screenshots go to `tests/out/`.

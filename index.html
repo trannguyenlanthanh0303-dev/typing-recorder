@@ -189,8 +189,8 @@ ol.steps li::before {
 
     <div style="margin-top:24px">
       <button class="btn" id="btn-start">Start</button>
-      <button class="linkbtn" id="btn-load">Load a recording (.json)</button>
-      <input type="file" id="file" accept=".json,.txt,application/json,text/plain" hidden>
+      <button class="linkbtn" id="btn-load">Load a recording (.txt)</button>
+      <input type="file" id="file" accept=".txt,.json,text/plain,application/json" hidden>
     </div>
   </div>
 </section>
@@ -850,27 +850,23 @@ function showResult(rec, live) {
   $('#s-result').scrollTop = 0;
 }
 
+// Recordings are .txt files holding JSON: Chrome on Android won't share .json (it downloads instead).
 function fileFor(rec) {
   const json = JSON.stringify(rec);
-  const name = `typing-recorder-${rec.seed || 'rec'}`;
-  return {
-    json, name,
-    // Chrome's Web Share only allows certain extensions (.json isn't one), so fall back to .txt.
-    candidates: [new File([json], name + '.json', { type: 'application/json' }), new File([json], name + '.txt', { type: 'text/plain' })],
-  };
+  const name = `typing-recorder-${rec.seed || 'rec'}.txt`;
+  return { json, name, file: new File([json], name, { type: 'text/plain' }) };
 }
 function download(json, name) {
-  const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-  const a = Object.assign(document.createElement('a'), { href: url, download: name + '.json' });
+  const url = URL.createObjectURL(new Blob([json], { type: 'text/plain' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 $('#btn-share').onclick = async () => {
-  const { json, name, candidates } = fileFor(S.rec);
-  const file = navigator.canShare && candidates.find(f => navigator.canShare({ files: [f] }));
-  if (file) {
+  const { json, name, file } = fileFor(S.rec);
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try { await navigator.share({ files: [file], title: 'Typing recording' }); }
     catch (e) { if (e.name !== 'AbortError') { download(json, name); toast('Saved as file'); } }
     return;
